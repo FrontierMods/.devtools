@@ -1,0 +1,15 @@
+[
+	{
+		"game": {
+			"path": "C:/Games/Cataclysm - Dark Days Ahead"
+		},
+		"autodoc": {
+			"transformers": [
+				{
+					"package": "@frmds/transformers",
+					"export": "CANONICAL_TRANSFORMER"
+				}
+			]
+		}
+	}
+]

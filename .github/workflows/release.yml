@@ -1,0 +1,29 @@
+name: release
+
+on:
+    push:
+        branches: [main]
+
+permissions:
+    id-token: write
+    contents: read
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        environment: npm
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: oven-sh/setup-bun@v2
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  registry-url: https://registry.npmjs.org
+
+            - run: bun install --frozen-lockfile --linker hoisted
+
+            - run: bunx tsgo -b
+
+            - run: bunx changeset publish

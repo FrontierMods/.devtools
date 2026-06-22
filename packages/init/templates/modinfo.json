@@ -1,0 +1,17 @@
+[
+	{
+		"type": "MOD_INFO",
+		"id": "my_mod",
+
+		"name": "My Mod",
+		"description": "My mod's description",
+
+		"authors": ["My Name"],
+
+		"category": "items",
+
+		"dependencies": ["dda"],
+
+		"path": "json"
+	}
+]

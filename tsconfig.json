@@ -1,0 +1,10 @@
+{
+	"files": [],
+	"references": [
+		{ "path": "packages/frontier" },
+		{ "path": "packages/autodoc" },
+		{ "path": "packages/format" },
+		{ "path": "packages/init" },
+		{ "path": "packages/transformers" }
+	]
+}

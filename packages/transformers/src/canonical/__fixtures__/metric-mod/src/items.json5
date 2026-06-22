@@ -1,0 +1,27 @@
+[
+	{
+		id: "metric_fixture_item",
+		type: "GENERIC",
+		name: "metric fixture item",
+		description: "Exercises the v2 metric positional scan.",
+
+		// converted: decimal/imperial at top-level positions
+		weight: "0.5 kg", // -> "500 g"
+		volume: "1.2 L", // -> "1 L 200 ml"
+		longest_side: "7.5 in", // -> "19 cm 1 mm"
+
+		// idempotent: already-canonical, gate skips
+		integral_volume: "2 L", // unchanged
+
+		// positional targeting: NOT in the path-list, must remain untouched
+		unlisted_quantity: "7.5 in", // unchanged
+
+		pocket_data: [
+			{
+				pocket_type: "CONTAINER",
+				max_contains_volume: "2.5 L", // -> "2 L 500 ml" (proves [*] expansion)
+				max_contains_weight: "1.5 kg", // -> "1 kg 500 g"
+			},
+		],
+	},
+]

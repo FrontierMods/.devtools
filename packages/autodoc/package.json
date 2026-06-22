@@ -1,0 +1,85 @@
+{
+	"name": "@frmds/autodoc",
+	"version": "0.8.0",
+	"description": "Processes JSON5 files for Frontier Mods, a collection of mods for the game Cataclysm: Dark Days Ahead",
+	"keywords": [
+		"frontier-plugin"
+	],
+	"homepage": "https://github.com/FrontierMods/.devtools",
+	"bugs": {
+		"url": "https://github.com/FrontierMods/.devtools/issues",
+		"email": "frontiermods@protonmail.com"
+	},
+	"license": "MIT",
+	"author": {
+		"name": "Hyperseeker",
+		"email": "thatfanficguy@protonmail.com",
+		"url": "https://github.com/Hyperseeker"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/FrontierMods/.devtools.git",
+		"directory": "packages/autodoc"
+	},
+	"funding": [
+		"https://ko-fi.com/frontiermods",
+		"https://www.buymeacoffee.com/frontiermods"
+	],
+	"files": [
+		"LICENSE",
+		"package.json",
+		"README.md",
+		"dist/"
+	],
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./plugin": {
+			"types": "./dist/plugin.d.ts",
+			"import": "./dist/plugin.js"
+		}
+	},
+	"scripts": {
+		"build": "tsgo -b",
+		"watch": "tsgo --watch",
+		"lint": "oxlint --type-aware",
+		"format": "oxfmt",
+		"format:check": "oxfmt --check",
+		"typecheck": "tsgo --noEmit",
+		"prepublishOnly": "bun run lint && bun run format:check && bun run build",
+		"postinstall": "frontier plugins add @frmds/autodoc || exit 0",
+		"preuninstall": "frontier plugins remove @frmds/autodoc || exit 0"
+	},
+	"dependencies": {
+		"@frmds/frontier": "^0.6.0",
+		"@logtape/file": "^2.2.0",
+		"@logtape/logtape": "^2.2.0",
+		"@logtape/pretty": "^2.2.0",
+		"@quantities/core": "^2.0.0",
+		"@quantities/registry": "^1.0.0",
+		"@quantities/to-compound": "^0.5.0",
+		"fs-extra": "^11.3.5",
+		"listr2": "^10.2.1",
+		"p-limit": "^7.3.0",
+		"tinyglobby": "^0.2.17",
+		"typebox": "^1.3.0"
+	},
+	"devDependencies": {
+		"@types/fs-extra": "^11.0.4",
+		"@typescript/native-preview": "^7.0.0-dev.20260622.1",
+		"oxfmt": "^0.55.0",
+		"oxlint": "^1.70.0",
+		"oxlint-tsgolint": "^0.23.0"
+	},
+	"peerDependencies": {
+		"@stricli/core": "^1.2.8"
+	},
+	"engines": {
+		"bun": ">=1.3.0"
+	}
+}

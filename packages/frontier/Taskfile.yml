@@ -1,0 +1,41 @@
+version: "3"
+
+tasks:
+    build:
+        desc: "Build Frontier"
+        sources:
+            - "src/**/*.ts"
+            - "tsconfig.json"
+            - "../../tsconfig.base.json"
+        generates:
+            - "dist/**/*.js"
+            - "dist/**/*.d.ts"
+        cmds:
+            - bun run build
+
+    typecheck:
+        desc: "Typecheck Frontier"
+        cmds:
+            - bun run typecheck
+
+    lint:
+        desc: "Lint Frontier"
+        cmds:
+            - bun run lint
+
+    format:
+        desc: "Format Frontier"
+        cmds:
+            - bun run format
+
+    check:
+        desc: "Check formatting on Frontier"
+        cmds:
+            - bun run format:check
+
+    ci:
+        desc: "Run all CI checks"
+        cmds:
+            - task: typecheck
+            - task: lint
+            - task: check
