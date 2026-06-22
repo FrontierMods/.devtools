@@ -1,0 +1,36 @@
+[
+	{
+		id: "double",
+		type: "FUNCTION",
+		args: [["n", "number"]],
+		returns: { math: [{ arg: "n" }, { op: "multiply", value: 2 }] },
+	},
+
+	{
+		id: "double_plus_one",
+		type: "FUNCTION",
+		args: [["n", "number"]],
+		returns: {
+			math: [
+				{ fn: "double", args: [{ arg: "n" }] },
+				{ op: "add", value: 1 },
+			],
+		},
+	},
+
+	{
+		id: "wrap",
+		type: "FUNCTION",
+		args: [["label", "string"]],
+		returns: { wrapped: { arg: "label" } },
+	},
+
+	{
+		id: "function_fixture_item",
+		type: "GENERIC",
+		name: "function fixture item",
+		description: "Exercises the v2 functions traversal transformer.",
+		fixture_label: { fn: "wrap", args: ["frontier"] },
+		fixture_value: { fn: "double_plus_one", args: [5] },
+	},
+]

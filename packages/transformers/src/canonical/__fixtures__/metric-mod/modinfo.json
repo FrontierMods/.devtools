@@ -1,0 +1,10 @@
+[
+	{
+		"type": "MOD_INFO",
+		"id": "metric_fixture",
+		"name": "Metric Fixture",
+		"description": "Fixture exercising the v2 metric transformer's positional scan.",
+		"category": "items",
+		"path": "json"
+	}
+]

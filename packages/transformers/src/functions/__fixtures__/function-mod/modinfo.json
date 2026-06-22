@@ -1,0 +1,10 @@
+[
+	{
+		"type": "MOD_INFO",
+		"id": "function_fixture",
+		"name": "Function Fixture",
+		"description": "Fixture exercising the v2 functions traversal transformer.",
+		"category": "items",
+		"path": "json"
+	}
+]

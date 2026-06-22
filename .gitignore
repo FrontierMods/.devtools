@@ -1,0 +1,7 @@
+**/*.todo/**
+TODO
+node_modules/
+.task/
+dist/
+
+*.tsbuildinfo

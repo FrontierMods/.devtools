@@ -1,0 +1,12 @@
+[
+	{
+		"id": "function_fixture_item",
+		"type": "GENERIC",
+		"name": "function fixture item",
+		"description": "Exercises the v2 functions traversal transformer.",
+		"fixture_label": {
+			"wrapped": "frontier"
+		},
+		"fixture_value": 11
+	}
+]

@@ -1,0 +1,74 @@
+version: "3"
+
+includes:
+    frontier:
+        taskfile: ./packages/frontier
+        dir: ./packages/frontier
+    autodoc:
+        taskfile: ./packages/autodoc
+        dir: ./packages/autodoc
+    transformers:
+        taskfile: ./packages/transformers
+        dir: ./packages/transformers
+    init:
+        taskfile: ./packages/init
+        dir: ./packages/init
+    format:
+        taskfile: ./packages/format
+        dir: ./packages/format
+
+tasks:
+    build:
+        desc: "Build all packages"
+        deps:
+            - ci
+            - frontier:build
+            - autodoc:build
+            - transformers:build
+            - init:build
+            - format:build
+
+    typecheck:
+        desc: "Typecheck all packages"
+        deps:
+            - frontier:typecheck
+            - autodoc:typecheck
+            - transformers:typecheck
+            - format:typecheck
+
+    lint:
+        desc: "Lint all packages"
+        deps:
+            - frontier:lint
+            - autodoc:lint
+            - transformers:lint
+            - format:lint
+
+    format:
+        desc: "Format all packages"
+        deps:
+            - frontier:format
+            - autodoc:format
+            - transformers:format
+            - format:format
+
+    check:
+        desc: "Check formatting on all packages"
+        deps:
+            - frontier:check
+            - autodoc:check
+            - transformers:check
+            - format:check
+    
+    ci:
+        desc: "Run CI on all packages"
+        deps:
+            - lint
+            - check
+            - typecheck
+
+    clean:
+        desc: "Remove all build artifacts"
+        cmds:
+            - rm -rf packages/*/dist
+            - rm -rf .task
