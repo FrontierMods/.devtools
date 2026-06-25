@@ -4,7 +4,7 @@
 
 import type { JSONValue } from "../types/data.ts";
 import type { PropertyPath } from "../types/data.ts";
-import { isDefined, isObject } from "../types/guards.ts";
+import { isArray, isDefined, isObject } from "../types/guards.ts";
 
 /**
  * A type-preserving key of `T`.
@@ -99,9 +99,15 @@ export function getAtPath(
 	let current: JSONValue | undefined = value;
 
 	for (const segment of path) {
-		if (!isObject<JSONValue>(current)) return undefined;
-
-		current = current[segment];
+		if (isObject<JSONValue>(current)) {
+			current = current[segment];
+		} else if (isArray<JSONValue>(current)) {
+			// * the coercion to `Number` has to exist for typechecking reasons
+			// * in JS, `array["1"] === array[1]`
+			current = current[Number(segment)];
+		} else {
+			return undefined;
+		}
 	}
 
 	return current;
