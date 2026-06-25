@@ -1,6 +1,6 @@
 {
 	"name": "@frmds/autodoc",
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"description": "Processes JSON5 files for Frontier Mods, a collection of mods for the game Cataclysm: Dark Days Ahead",
 	"keywords": [
 		"frontier-plugin"
