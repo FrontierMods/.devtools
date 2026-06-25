@@ -59,7 +59,7 @@ tasks:
             - autodoc:check
             - transformers:check
             - format:check
-    
+
     ci:
         desc: "Run CI on all packages"
         deps:
@@ -72,3 +72,13 @@ tasks:
         cmds:
             - rm -rf packages/*/dist
             - rm -rf .task
+
+    change:
+        desc: "Author a changeset describing the current changes"
+        cmds:
+            - bunx changeset
+
+    version:
+        desc: "Consume changesets: bump versions and write changelogs"
+        cmds:
+            - bunx changeset version
