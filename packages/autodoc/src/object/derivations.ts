@@ -40,7 +40,7 @@ interface RuntimeDerivation<TObject extends JSONObject = JSONObject> {
 const LOGGER = logger.getChild("derivations");
 
 /**
- * Derives `longest_side` as the cube root of `volume` when the object does not specify `longest_side`.
+ * Derives `longest_side` as the cube root of `volume`, rounded to the nearest whole centimeter, when the object does not specify `longest_side`.
  */
 const LONGEST_SIDE_FROM_VOLUME: RuntimeDerivation<ObjectWithVolume> = {
 	name: "longest_side_from_volume",
@@ -56,7 +56,8 @@ const LONGEST_SIDE_FROM_VOLUME: RuntimeDerivation<ObjectWithVolume> = {
 	derive(object: ObjectWithVolume): Partial<GameObject> | undefined {
 		try {
 			const volume = Quantity(object.volume).toBase();
-			const longestSide = volume.root(3);
+			// * game rounds to the nearest whole centimeter
+			const longestSide = volume.root(3).toPrecision("1 cm");
 
 			return {
 				longest_side: longestSide.toCompound(CANONICAL_UNITS.length),
