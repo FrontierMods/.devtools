@@ -27,7 +27,9 @@ describe("calculateMagazinePouch", () => {
 
 		const config = { type: 2, capacity: 1 };
 
-		expect(gate.Check({ pocket_type: "CONTAINER", magazine_pouch: config })).toBe(true);
+		expect(
+			gate.Check({ pocket_type: "CONTAINER", magazine_pouch: config }),
+		).toBe(true);
 		expect(gate.Check({ magazine_pouch: config })).toBe(false);
 	});
 
