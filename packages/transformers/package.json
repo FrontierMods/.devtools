@@ -1,6 +1,6 @@
 {
 	"name": "@frmds/transformers",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Shared transformers for the Autodoc module of the Frontier Mods `.devtools`",
 	"keywords": [
 		"frontier-plugin"

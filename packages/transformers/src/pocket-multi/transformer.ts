@@ -33,11 +33,12 @@ import { Type } from "typebox";
 /** A pocket carrying the integer `multi` duplication directive. */
 interface PocketWithMulti extends JSONObject {
 	multi: number;
+	pocket_type: string;
 }
 
-/** Any object carrying an integer `multi` of at least 1. Other pocket fields pass through, so `additionalProperties` stays open. */
+/** A pocket carrying an integer `multi` of at least 1. The `pocket_type` requirement keeps the gate on real pockets and off a bare `{ multi: N }` directive payload (e.g. a reference's unapplied `patch` merge value), which would otherwise match here and expand before the directive resolves. Other pocket fields pass through, so `additionalProperties` stays open. */
 const ContentSchema = Type.Object(
-	{ multi: Type.Integer({ minimum: 1 }) },
+	{ multi: Type.Integer({ minimum: 1 }), pocket_type: Type.String() },
 	{ additionalProperties: true },
 );
 
