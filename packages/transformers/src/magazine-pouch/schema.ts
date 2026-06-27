@@ -56,8 +56,8 @@ export const MagazinePouchConfigSchema = Type.Object(
 	{ additionalProperties: false },
 );
 
-/** Gate: a pocket carrying a strict `magazine_pouch` config. The pocket itself stays open. */
+/** Gate: a pocket carrying a strict `magazine_pouch` config. */
 export const ContentSchema = Type.Object(
-	{ magazine_pouch: MagazinePouchConfigSchema },
+	{ magazine_pouch: MagazinePouchConfigSchema, pocket_type: Type.String() },
 	{ additionalProperties: true },
 );
