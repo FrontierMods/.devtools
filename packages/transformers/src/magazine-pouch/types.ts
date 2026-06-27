@@ -27,4 +27,5 @@ export interface Pocket extends JSONObject {
 /** A pocket that carries a magazine-pouch config: the value this transformer matches. */
 export interface PocketWithMagPouch extends Pocket {
 	magazine_pouch: MagazinePouchConfig;
+	pocket_type: string;
 }

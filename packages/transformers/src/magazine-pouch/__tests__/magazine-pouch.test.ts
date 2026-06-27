@@ -3,6 +3,7 @@
 import { describe, expect, test } from "bun:test";
 import type { TransformContext } from "@frmds/autodoc";
 import type { Patch } from "@frmds/frontier";
+import { Compile } from "typebox/compile";
 import MAGAZINE_POUCH_TRANSFORMER from "../transformer.ts";
 import type { PocketWithMagPouch } from "../types.ts";
 
@@ -12,12 +13,24 @@ const CONTEXT = {
 	sourcePath: "items.json5",
 } as TransformContext;
 
-/** Run the transformer over a pocket and return its patches. */
-function transform(pocket: PocketWithMagPouch): Patch[] {
-	return MAGAZINE_POUCH_TRANSFORMER.transform(pocket, CONTEXT);
+/** Run the transformer over a pocket and return its patches. The gate-irrelevant `pocket_type` is supplied so cases stay focused on the config. */
+function transform(pocket: Omit<PocketWithMagPouch, "pocket_type">): Patch[] {
+	return MAGAZINE_POUCH_TRANSFORMER.transform(
+		{ pocket_type: "CONTAINER", ...pocket },
+		CONTEXT,
+	);
 }
 
 describe("calculateMagazinePouch", () => {
+	test("gate matches a pocket with a config but not a bare `magazine_pouch` directive payload", () => {
+		const gate = Compile(MAGAZINE_POUCH_TRANSFORMER.target.content);
+
+		const config = { type: 2, capacity: 1 };
+
+		expect(gate.Check({ pocket_type: "CONTAINER", magazine_pouch: config })).toBe(true);
+		expect(gate.Check({ magazine_pouch: config })).toBe(false);
+	});
+
 	test("computes base stats for a numeric type and drops the config", () => {
 		expect(transform({ magazine_pouch: { type: 2, capacity: 1 } })).toEqual(
 			[
