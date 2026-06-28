@@ -60,7 +60,7 @@ export type DividePatch = Static<typeof PatchSchemas.divide>;
 export type MergePatch = Static<typeof PatchSchemas.merge>;
 
 /**
- * Replace the value at a path.
+ * Replace the value at a path, or every array item matching a filter set.
  */
 export type ReplacePatch = Static<typeof PatchSchemas.replace>;
 
@@ -205,6 +205,7 @@ export const PatchSchemas = {
 		...BASE_PATCH_FIELDS,
 		op: Type.Literal("replace"),
 		value: JsonValueSchema,
+		filter: Type.Optional(Type.Array(ReferenceFilterSchema)),
 	}),
 	remove: Type.Object({
 		...BASE_PATCH_FIELDS,

@@ -16,6 +16,7 @@ import type {
 	MultiplyPatch,
 	Patch,
 	PushPatch,
+	ReplacePatch,
 	SubtractPatch,
 } from "./schemas.ts";
 
@@ -129,6 +130,51 @@ function convertDrop(
 		op: "remove" as const,
 		path: `${pointer}/${index}`,
 	}));
+}
+
+/**
+ * Replaces the value at the path, or every array item matching the filter set.
+ *
+ * @param pointer JSON Pointer to the target location or array.
+ * @param current The current value at the pointer.
+ * @param patch Replace patch operation supplying the new value and optional filter set.
+ *
+ * @returns A single replace at the pointer, or one replace per matching index when filtering.
+ *
+ * @throws Error if a filter is given but the current value is not an array.
+ */
+function convertReplace(
+	pointer: string,
+	current: unknown,
+	patch: ReplacePatch,
+): JSONPatchOperation[] {
+	const filter = patch.filter;
+
+	if (!filter || !filter.length)
+		return [{ op: "replace", path: pointer, value: patch.value }];
+
+	if (!Array.isArray(current))
+		throw new Error(
+			`convertReplace(): Cannot filter-replace in non-array value at \`${pointer}\` (type: \`${typeof current}\`)`,
+		);
+
+	return current
+		.map((item, index) => ({ item, index }))
+		.filter(({ item }) => {
+			if (
+				typeof item !== "object" ||
+				item === null ||
+				Array.isArray(item)
+			)
+				return false;
+
+			return matchesAllFilters(item, filter);
+		})
+		.map(({ index }) => ({
+			op: "replace" as const,
+			path: `${pointer}/${index}`,
+			value: patch.value,
+		}));
 }
 
 /**
@@ -325,7 +371,7 @@ export function convertToJSONPatch(
 		case "insert":
 			return [{ op: "add", path: pointer, value: patch.value }];
 		case "replace":
-			return [{ op: "replace", path: pointer, value: patch.value }];
+			return convertReplace(pointer, currentValue, patch);
 		case "remove":
 			return [{ op: "remove", path: pointer }];
 		case "test":
