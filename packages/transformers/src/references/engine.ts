@@ -127,12 +127,24 @@ export function resolveReference(
 				? ([reference.scope] as ModScope)
 				: context.scope;
 
-			const registryResult = context.objects.get(
-				targetId,
-				reference.type,
-				targetScope,
-				{ at: reference.raw ? "raw" : "runtime" },
-			);
+			const anchor = { at: reference.raw ? "raw" : "runtime" } as const;
+
+			// * prefer a target sharing the referrer's `type`, disambiguating IDs shared across types (e.g. an item and the recipe that produces it)
+			const registryResult =
+				context.objects.get(
+					targetId,
+					reference.type ?? context.currentObject.type,
+					targetScope,
+					anchor,
+				) ??
+				(reference.type
+					? undefined
+					: context.objects.get(
+							targetId,
+							undefined,
+							targetScope,
+							anchor,
+						));
 
 			if (!registryResult) {
 				const scopeInfo = reference.scope
