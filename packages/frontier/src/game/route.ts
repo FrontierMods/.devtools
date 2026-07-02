@@ -22,6 +22,7 @@ import {
 	listInstalls,
 } from "./installs.ts";
 import { isSHA, parseSHA, type SHA } from "./sha.ts";
+import { versionLabel } from "./version.ts";
 
 /**
  * Child logger scoped to game-install commands.
@@ -95,7 +96,7 @@ const GAME_DISCOVER_COMMAND = buildCommand({
 			choose: (sha, candidates) => promptChoice(sha, candidates),
 		});
 
-		if (!installs.length) return LOGGER.info("No CDDA installs found");
+		if (!installs.length) return LOGGER.info("No game installs found");
 
 		for (const install of installs)
 			LOGGER.info(`${install.sha} = ${install.path}`);
@@ -104,11 +105,12 @@ const GAME_DISCOVER_COMMAND = buildCommand({
 		flags: withCoreFlags(),
 		positional: { kind: "tuple", parameters: [] },
 	},
-	docs: { brief: "Find CDDA installs on this system and register them" },
+	docs: { brief: "Find game installs on this system and register them" },
 });
 
 /**
- * `game list`: print every registered install as `<sha> = <path>`.
+ * `game list`: print every registered install.
+ * Print format: `<version> = <path>`, where `<version>` is either stable-version tag or commit hash of the experimental version.
  */
 const GAME_LIST_COMMAND = buildCommand({
 	func: async function (this: CommandContext, flags: CoreFlags) {
@@ -119,7 +121,7 @@ const GAME_LIST_COMMAND = buildCommand({
 		if (!installs.length) return LOGGER.info("No game installs registered");
 
 		for (const install of installs)
-			LOGGER.info(`${install.sha} = ${install.path}`);
+			LOGGER.info(`${versionLabel(install.sha)} → ${install.path}`);
 	},
 	parameters: {
 		flags: withCoreFlags(),

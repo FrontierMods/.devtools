@@ -62,6 +62,8 @@ export interface GameObject extends JSONObject {
 	type: ObjectType;
 	/** Runtime inheritance identifier, a base-game quirk that also acts as an ID. */
 	abstract?: ObjectID;
+	/** Recipe identifier: the crafted object's ID, which also acts as the recipe's ID. */
+	result?: ObjectID;
 	/** Parent object to inherit from during `compose`. */
 	"copy-from"?: ObjectID;
 }
@@ -258,5 +260,6 @@ export interface ReadableObjectRegistry {
  *
  * - `id`: standard identifier, the most common case
  * - `abstract`: runtime inheritance identifier, a base-game quirk
+ * - `result`: recipe identifier, the crafted object's ID
  */
-export const ID_PROPERTIES = ["id", "abstract"] as const;
+export const ID_PROPERTIES = ["id", "abstract", "result"] as const;
