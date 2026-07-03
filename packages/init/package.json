@@ -1,6 +1,6 @@
 {
 	"name": "@frmds/init",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Initialize a new Frontier mod structure",
 	"keywords": [
 		"frontier-plugin"
@@ -51,7 +51,7 @@
 		"preuninstall": "frontier plugins remove @frmds/init || exit 0"
 	},
 	"dependencies": {
-		"@frmds/frontier": "^0.6.0",
+		"@frmds/frontier": "^0.7.0",
 		"fs-extra": "^11.3.5"
 	},
 	"devDependencies": {
