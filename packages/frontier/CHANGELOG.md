@@ -1,5 +1,11 @@
 # @frmds/frontier
 
+## 0.7.0
+
+### Minor Changes
+
+- 83d5995: Add mod versioning tool: uses Semantic Versioning to leverage `modinfo.json`'s `version` field
+
 ## 0.6.4
 
 ### Patch Changes
