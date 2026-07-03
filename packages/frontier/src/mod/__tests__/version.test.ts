@@ -127,7 +127,9 @@ describe("nextVersion", () => {
 	});
 
 	test("translates an impossible increment into ModVersionError", () => {
-		expect(() => getNextVersion("v1.2.3", "release")).toThrow(ModVersionError);
+		expect(() => getNextVersion("v1.2.3", "release")).toThrow(
+			ModVersionError,
+		);
 	});
 
 	test("canonicalizes a bare stored version while bumping", () => {
