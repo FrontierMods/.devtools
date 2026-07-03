@@ -34,6 +34,7 @@ tasks:
             - frontier:typecheck
             - autodoc:typecheck
             - transformers:typecheck
+            - init:typecheck
             - format:typecheck
 
     lint:
@@ -42,6 +43,7 @@ tasks:
             - frontier:lint
             - autodoc:lint
             - transformers:lint
+            - init:lint
             - format:lint
 
     format:
@@ -50,6 +52,7 @@ tasks:
             - frontier:format
             - autodoc:format
             - transformers:format
+            - init:format
             - format:format
 
     check:
@@ -58,6 +61,7 @@ tasks:
             - frontier:check
             - autodoc:check
             - transformers:check
+            - init:check
             - format:check
 
     ci:
