@@ -68,6 +68,29 @@ frontier game list
 frontier game remove <sha|path>
 ```
 
+## Mod versioning
+
+`frontier mod version` reads and writes the `version` field of the `modinfo.json` in the current directory. Any [SemVer](https://semver.org) version is accepted, with or without the `v` prefix, and is stored canonically as `v` followed by the version, e.g. `v0.1.0`. Malformed versions are reported and never modified.
+
+```sh
+# print the current version
+frontier mod version
+
+# bump the version
+# kind is one of: major, minor, patch, premajor, preminor, prepatch, prerelease, release
+# default is patch
+frontier mod version up [kind]
+
+# name the prerelease component (premajor, preminor, prepatch, prerelease)
+frontier mod version up prerelease --identifier rc
+
+# store an exact version (stored as v1.2.0 either way)
+frontier mod version set 1.2.0
+frontier mod version set v1.2.0
+```
+
+On a mod with no `version` field, plain `up` starts at `v0.1.0` while an explicit kind increments from an implicit `v0.0.0`.
+
 ## For plugin authors
 
 Frontier is also the shared library every plugin imports. Its public API groups the reusable components by concern:

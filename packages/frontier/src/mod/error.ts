@@ -1,5 +1,5 @@
 /**
- * @file The error raised when mod discovery or resolution fails.
+ * @file The errors raised when mod discovery, resolution, or versioning fails.
  */
 
 /**
@@ -7,4 +7,11 @@
  */
 export class ModResolverError extends Error {
 	readonly name = "ModResolverError";
+}
+
+/**
+ * Error thrown when reading, validating, or rewriting a mod's version fails.
+ */
+export class ModVersionError extends Error {
+	readonly name = "ModVersionError";
 }
