@@ -33,7 +33,7 @@ jobs:
               with:
                   # replace plain versioning with versioning + formatting
                   # unformatted changelogs break publishing
-                  version: bunx changeset version && bunx oxfmt
+                  version: bash -c "bunx changeset version && bunx oxfmt"
                   publish: bunx changeset publish
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
