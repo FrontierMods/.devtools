@@ -37,6 +37,10 @@ export const TYPE_TRANSFORM_SKIP: ObjectType[] = [
 	 * Functions contain template values (argument placeholders) that aren't valid until invocation.
 	 */
 	"FUNCTION",
+	/**
+	 * We currently cannot process mapgen objects due to the complexity of their IDs.
+	 */
+	"mapgen",
 ];
 
 /**
