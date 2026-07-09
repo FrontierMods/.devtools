@@ -1,5 +1,5 @@
 /**
- * @file The `functions` transformer: matches function invocations via FunctionInvocationSchema and substitutes the looked-up definition's body.
+ * @file The `functions` transformer: matches function invocations via {@link FunctionInvocationSchema} and substitutes the looked-up definition's body.
  */
 
 import { assertSchema, type Transformer } from "@frmds/autodoc";
@@ -11,10 +11,15 @@ import {
 	validateArgumentTypes,
 	validateFunctionDefinition,
 } from "./engine.ts";
-import { FunctionInvocationSchema, FunctionObjectSchema } from "./schema.ts";
-import type { FunctionInvocation } from "./types.ts";
+import {
+	FunctionInvocationSchema,
+	FunctionObjectSchema,
+	type FunctionInvocation,
+} from "./schema.ts";
 
-/** The `functions` transformer: traversal content gate on function invocations → substituted definition body. */
+/**
+ * The `functions` transformer.
+ */
 const FUNCTION_TRANSFORMER: Transformer<FunctionInvocation> = {
 	name: "resolveFunctions",
 	version: "1.0.0",
@@ -35,7 +40,6 @@ const FUNCTION_TRANSFORMER: Transformer<FunctionInvocation> = {
 					`  at: ${context.modId}:${context.sourcePath} (object: ${context.currentObject.id})`,
 			);
 
-		// validate-and-narrow the fetched game object to a `FunctionObject` so the rest of the flow is statically typed without a cast
 		assertSchema(
 			FunctionObjectSchema,
 			fnDef,
@@ -47,8 +51,8 @@ const FUNCTION_TRANSFORMER: Transformer<FunctionInvocation> = {
 		validateArgumentTypes(value, fnDef, context);
 
 		const bindings = createBindings(value.args, fnDef.args);
-		const clonedTemplate = structuredClone(fnDef.returns);
-		const result = substitute(clonedTemplate, bindings);
+		const template = structuredClone(fnDef.returns);
+		const result = substitute(template, bindings);
 
 		return [{ op: "replace", value: result }];
 	},

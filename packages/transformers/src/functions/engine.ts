@@ -4,15 +4,20 @@
 
 import { assertSchema, type TransformContext } from "@frmds/autodoc";
 import { deepWalk, entries, type JSONValue } from "@frmds/frontier";
-import { FunctionInvocationSchema, type JSONPrimitiveType } from "./schema.ts";
 import {
+	FunctionInvocationSchema,
+	isArgumentReference,
 	type FunctionInvocation,
 	type FunctionObject,
-	isArgumentReference,
-} from "./types.ts";
+	type JSONPrimitiveType,
+} from "./schema.ts";
 
 /**
- * Gets the JSON type of a value for validation.
+ * Returns the JSON type of a value.
+ *
+ * @param value {@link JSONValue} to get the type of.
+ *
+ * @returns The type of {@link value}.
  */
 function getJSONType(value: JSONValue): JSONPrimitiveType {
 	if (value === null) return "null";
@@ -30,59 +35,63 @@ function getJSONType(value: JSONValue): JSONPrimitiveType {
 
 	// * defensive check to make sure the returns are typed correctly
 	// * this cannot happen with a valid JSON file
-	throw new Error(`Unexpected value type: ${primitiveType}`);
+	throw new Error(
+		`getJSONType(): Unexpected value type: \`${primitiveType}\``,
+	);
 }
 
 /**
  * Validates that a function definition is well-formed.
- * Scans returns template for `{arg: ...}` references and ensures all exist in declared args.
+ *
+ * @param fn The function object to validate.
+ * @param context Transformer context. Supplied by the transformer itself.
  */
 export function validateFunctionDefinition(
-	fnDef: FunctionObject,
+	fn: FunctionObject,
 	context: TransformContext,
 ): void {
-	fnDef.args.forEach(([name], index) => {
+	fn.args.forEach(([name], index) => {
 		if (!name?.trim())
 			throw new Error(
 				`Functions: invalid function definition: empty argument name\n` +
-					`  function: ${fnDef.id}\n` +
+					`  function: ${fn.id}\n` +
 					`  at: ${context.modId}:${context.sourcePath}`,
 			);
 
-		if (
-			fnDef.args.some(
-				([nayme], jndex) => jndex !== index && nayme === name,
-			)
-		)
+		if (fn.args.some(([nayme], jndex) => jndex !== index && nayme === name))
 			throw new Error(
 				`Functions: invalid function definition: duplicate argument name\n` +
-					`  function: ${fnDef.id}\n` +
+					`  function: ${fn.id}\n` +
 					`  argument: ${name}\n` +
 					`  at: ${context.modId}:${context.sourcePath}`,
 			);
 	});
 
-	deepWalk(fnDef.returns, (_path, value) => {
+	deepWalk(fn.returns, (_path, value) => {
 		if (
 			isArgumentReference(value) &&
-			!fnDef.args.some(([name]) => name === value.arg)
+			!fn.args.some(([name]) => name === value.arg)
 		)
 			throw new Error(
 				`Functions: invalid function definition: unknown argument\n` +
-					`  function: ${fnDef.id}\n` +
+					`  function: ${fn.id}\n` +
 					`  argument: ${value.arg}\n` +
-					`  declared args: ${fnDef.args.map(([arg]) => arg).join(", ")}\n` +
+					`  declared args: ${fn.args.map(([arg]) => arg).join(", ")}\n` +
 					`  at: ${context.modId}:${context.sourcePath}`,
 			);
 	});
 }
 
 /**
- * Validates argument count matches expected.
+ * Validates argument count for the given function call instance.
+ *
+ * @param invocation Function call to validate.
+ * @param fn Function object to check against.
+ * @param context Transformer context. Supplied by the transformer itself.
  */
 export function validateArgumentCount(
 	invocation: FunctionInvocation,
-	fnDef: FunctionObject,
+	fn: FunctionObject,
 	context: TransformContext,
 ): void {
 	assertSchema(
@@ -91,18 +100,22 @@ export function validateArgumentCount(
 		`Invalid function invocation structure for ${invocation.fn}`,
 	);
 
-	if (invocation.args.length !== fnDef.args.length)
+	if (invocation.args.length !== fn.args.length)
 		throw new Error(
 			`Functions: argument count mismatch in function call\n` +
 				`  function: ${invocation.fn}\n` +
-				`  expected: ${fnDef.args.length} arguments\n` +
+				`  expected: ${fn.args.length} arguments\n` +
 				`  got: ${invocation.args.length} arguments\n` +
 				`  at: ${context.modId}:${context.sourcePath} (object: ${context.currentObject.id})`,
 		);
 }
 
 /**
- * Validates argument types match expected.
+ * Validates argument types for the given function call instance.
+ *
+ * @param invocation Function call to validate.
+ * @param fnDef Function object to check against.
+ * @param context Transformer context. Supplied by the transformer itself.
  */
 export function validateArgumentTypes(
 	invocation: FunctionInvocation,
@@ -117,19 +130,24 @@ export function validateArgumentTypes(
 		if (actualType !== expectedType)
 			throw new Error(
 				`Functions: type mismatch in function call\n` +
-					`  function: ${invocation.fn}\n` +
-					`  argument: ${argName} (position ${index})\n` +
-					`  expected: ${expectedType}\n` +
-					`  got: ${actualType} (${JSON.stringify(actualValue)})\n` +
-					`  at: ${context.modId}:${context.sourcePath} (object: ${context.currentObject.id})`,
+					`  function: \`${invocation.fn}\`\n` +
+					`  argument: \`${argName}\` (position ${index})\n` +
+					`  expected: \`${expectedType}\`\n` +
+					`  got: \`${actualType}\` (\`${JSON.stringify(actualValue)}\`)\n` +
+					`  at: ${context.modId}:${context.sourcePath} (object: \`${context.currentObject.id}\`)`,
 			);
 	}
 }
 
 /**
- * Creates argument bindings from invocation args and function definition.
+ * Creates argument bindings from invocation arguments and function definition.
+ *
+ * @param args
+ * @param definitions
+ * @returns
  */
 export function createBindings(
+	// TODO: derive `args` type from schema
 	args: JSONValue[],
 	definitions: [string, JSONPrimitiveType][],
 ): Record<string, JSONValue> {
@@ -139,7 +157,7 @@ export function createBindings(
 }
 
 /**
- * Recursively substitutes {arg: ...} references with bound values.
+ * Recursively substitutes argument references with bound values.
  */
 export function substitute(
 	value: JSONValue,
@@ -151,7 +169,7 @@ export function substitute(
 		const bound = bindings[value.arg];
 
 		if (bound === undefined)
-			throw new Error(`substitute(): unbound argument '${value.arg}'`);
+			throw new Error(`substitute(): unbound argument \`${value.arg}\``);
 
 		return bound;
 	}
