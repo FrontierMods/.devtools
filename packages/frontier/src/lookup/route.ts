@@ -28,8 +28,10 @@ import { rankSuggestions } from "./match.ts";
 interface LookupFlags extends CoreFlags {
 	/** Narrows results to one object type. */
 	type?: ObjectType;
-	/** Prints exactly one matching object as bare JSON on stdout. */
+	/** Prints all matching objects as a bare JSON array on stdout. */
 	json?: boolean;
+	/** Limits output to the first match. With `--json`, prints it as a bare object instead of an array. */
+	first?: boolean;
 	/** Overrides the game install, a registered commit hash or a path. */
 	game?: string;
 }
@@ -70,22 +72,23 @@ export const LOOKUP_COMMAND = buildCommand({
 				await ensureObjectIndex(cache, files);
 
 				const owning = findOwningFiles(cache, query, flags.type);
+				const matches = matchingObjects(cache, query, owning);
 
-				if (flags.json) {
-					if (printFirstObject(cache, query, owning)) return;
-
-					console.error(noMatchMessage(query, flags.type));
+				if (!matches.length) {
+					if (flags.json)
+						console.error(noMatchMessage(query, flags.type));
+					else printCompletions(cache, query, flags.type);
 
 					process.exitCode = 1;
 
 					return;
 				}
 
-				if (owning.length) return printObjects(cache, query, owning);
+				const selected = flags.first ? matches.slice(0, 1) : matches;
 
-				printCompletions(cache, query, flags.type);
+				if (flags.json) return printJSON(selected, flags.first);
 
-				process.exitCode = 1;
+				printObjects(selected);
 			} finally {
 				await cache.close();
 			}
@@ -108,7 +111,12 @@ export const LOOKUP_COMMAND = buildCommand({
 			},
 			json: {
 				kind: "boolean",
-				brief: "Print exactly one matching object as bare JSON",
+				brief: "Print matching objects as a bare JSON array",
+				optional: true,
+			},
+			first: {
+				kind: "boolean",
+				brief: "Limit output to the first match",
 				optional: true,
 			},
 			game: {
@@ -171,38 +179,28 @@ function matchingObjects(
 /**
  * Prints every matching object, each preceded by its owning file's path.
  *
- * @param cache The install's cache holding the parsed objects.
- * @param id The exactly-matched object ID.
- * @param owning The index hits to print.
+ * @param matches Owning-file and object pairs to print.
  */
-function printObjects(cache: Cache, id: ObjectID, owning: OwningEntry[]): void {
-	for (const [file, object] of matchingObjects(cache, id, owning)) {
+function printObjects(matches: [CanonicalPath, LoadableGameObject][]): void {
+	for (const [file, object] of matches) {
 		console.log(file);
 		console.log(JSON.stringify(object, null, 2));
 	}
 }
 
 /**
- * Prints the first matching object as bare JSON on stdout.
+ * Prints matching objects as bare JSON on stdout: an array, or a single object under `--first`.
  *
- * @param cache The install's cache holding the parsed objects.
- * @param id The exactly-matched object ID.
- * @param owning The index hits to walk.
- *
- * @returns `true` when an object was printed.
+ * @param matches Owning-file and object pairs to print.
+ * @param first Whether to print the sole match as a bare object.
  */
-function printFirstObject(
-	cache: Cache,
-	id: ObjectID,
-	owning: OwningEntry[],
-): boolean {
-	const [first] = matchingObjects(cache, id, owning);
+function printJSON(
+	matches: [CanonicalPath, LoadableGameObject][],
+	first?: boolean,
+): void {
+	const objects = matches.map(([, object]) => object);
 
-	if (!first) return false;
-
-	console.log(JSON.stringify(first[1], null, 2));
-
-	return true;
+	console.log(JSON.stringify(first ? objects[0] : objects, null, 2));
 }
 
 /**
