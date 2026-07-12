@@ -1,5 +1,14 @@
 # @frmds/autodoc
 
+## 0.8.4
+
+### Patch Changes
+
+- e690fd8: Add object lookup tool: `frontier lookup <id>` to quickly find object(s) matching provided ID
+  Rework object cache to accomodate the lookup tool
+- Updated dependencies [e690fd8]
+    - @frmds/frontier@0.8.0
+
 ## 0.8.3
 
 ### Patch Changes
