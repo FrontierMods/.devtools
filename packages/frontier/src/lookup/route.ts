@@ -37,6 +37,11 @@ interface LookupFlags extends CoreFlags {
 	 * With `--json`, prints them as a string array.
 	 */
 	path?: boolean;
+	/**
+	 * Lists all IDs matching the query, best match first, one per line.
+	 * With `--json`, prints them as a string array.
+	 */
+	list?: boolean;
 	/** Overrides the game install, a registered commit hash or a path. */
 	game?: string;
 }
@@ -57,7 +62,9 @@ export const LOOKUP_COMMAND = buildCommand({
 	) {
 		// * skip logging on machine-oriented output, which is intended for piping
 		await configureLogger(
-			flags.json || flags.path ? { ...flags, silent: true } : flags,
+			flags.json || flags.path || flags.list
+				? { ...flags, silent: true }
+				: flags,
 		);
 
 		try {
@@ -77,6 +84,8 @@ export const LOOKUP_COMMAND = buildCommand({
 
 			try {
 				await ensureObjectIndex(cache, files);
+
+				if (flags.list) return printList(cache, query, flags);
 
 				const owning = findOwningFiles(cache, query, flags.type);
 				const matches = matchingObjects(cache, query, owning);
@@ -133,6 +142,11 @@ export const LOOKUP_COMMAND = buildCommand({
 			path: {
 				kind: "boolean",
 				brief: "Print only the owning file paths, one per line",
+				optional: true,
+			},
+			list: {
+				kind: "boolean",
+				brief: "List all IDs matching the query, best match first",
 				optional: true,
 			},
 			game: {
@@ -242,6 +256,61 @@ function printPaths(
 }
 
 /**
+ * Collects the distinct IDs held by the index, optionally narrowed to one object type.
+ *
+ * @param cache The install's cache holding the index.
+ * @param type Object type filter narrowing the corpus.
+ *
+ * @returns The distinct indexed IDs.
+ */
+function indexedIDs(cache: Cache, type?: ObjectType): ObjectID[] {
+	return [
+		...new Set(
+			listIndexKeys(cache)
+				.filter(([, keyType]) => !type || keyType === type)
+				.map(([id]) => id),
+		),
+	];
+}
+
+/**
+ * Lists every ID matching the query, best match first: one per line, or as a JSON string array under `--json`.
+ *
+ * Sets the exit code to 1 when nothing matches.
+ *
+ * @param cache The install's cache holding the index.
+ * @param query The query to rank IDs against.
+ * @param flags The command's flags shaping the output.
+ */
+function printList(cache: Cache, query: string, flags: LookupFlags): void {
+	const ranked = rankSuggestions(query, indexedIDs(cache, flags.type));
+
+	if (!ranked.length) {
+		const scope = flags.type ? ` with type \`${flags.type}\`` : "";
+
+		console.error(
+			`No object matches \`${query}\`${scope}, no similar IDs found`,
+		);
+
+		process.exitCode = 1;
+
+		return;
+	}
+
+	const selected = flags.first ? ranked.slice(0, 1) : ranked;
+
+	if (flags.json) {
+		console.log(
+			JSON.stringify(flags.first ? selected[0] : selected, null, 2),
+		);
+
+		return;
+	}
+
+	for (const id of selected) console.log(id);
+}
+
+/**
  * Builds the one-line miss message for the `--json` path.
  *
  * @param query The unmatched query.
@@ -267,21 +336,13 @@ function printCompletions(
 	query: string,
 	type?: ObjectType,
 ): void {
-	const keys = listIndexKeys(cache);
-
-	const ids = [
-		...new Set(
-			keys
-				.filter(([, keyType]) => !type || keyType === type)
-				.map(([id]) => id),
-		),
-	];
-
-	const ranked = rankSuggestions(query, ids);
+	const ranked = rankSuggestions(query, indexedIDs(cache, type));
 	const scope = type ? ` with type \`${type}\`` : "";
 
 	if (!ranked.length) {
-		console.error(`No object matches \`${query}\`${scope}`);
+		console.error(
+			`No object matches \`${query}\`${scope}, no similar IDs found`,
+		);
 
 		return;
 	}

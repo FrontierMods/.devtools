@@ -112,6 +112,10 @@ frontier lookup wooden_grip --json --first
 # only the owning file paths, one per line, or with `--json` a string array
 frontier lookup wooden_grip --path
 
+# browse: list all IDs matching the query, best match first
+# combines with `--type`, `--first`, and `--json`
+frontier lookup zombie --list --type MONSTER
+
 # no exact match: suggests valid IDs, exits with code 1
 # IDs are sorted by substring then Levenshtein-distance match
 frontier lookup woode
