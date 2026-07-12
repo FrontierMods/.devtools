@@ -5,6 +5,11 @@
 import { META_NAMESPACE } from "../constants.ts";
 
 /**
+ * A store key: a plain string, or a composite array key such as `[id, type]`.
+ */
+export type CacheKey = string | string[];
+
+/**
  * Options for creating a {@link Cache} instance.
  */
 export interface CacheOptions {

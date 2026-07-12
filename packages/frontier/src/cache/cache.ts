@@ -11,10 +11,11 @@ import { extractErrorMessage } from "../error.ts";
 import { normalizePath, toCanonicalPath } from "../file/paths.ts";
 import { logger } from "../logger.ts";
 import type { CanonicalPath } from "../types/data.ts";
-import { LMDBBackend, MemoryBackend } from "./backend.ts";
+import { LMDBBackend, MemoryBackend, type StorageBackend } from "./backend.ts";
 import { GraphStore, KVStore, ObjectStore } from "./stores.ts";
 import {
 	RESERVED_NAMESPACE_PREFIX,
+	type CacheKey,
 	type CacheOptions,
 	type ObjectEntry,
 } from "./types.ts";
@@ -73,6 +74,8 @@ export class Cache {
 		// * they get properly typed at endpoints
 		KVStore<unknown> | ObjectStore<unknown> | GraphStore
 	>();
+	/** Every opened backend, flushed together on {@link flush} and {@link close}. */
+	private readonly backends: StorageBackend<unknown>[] = [];
 
 	/**
 	 * Constructs a cache, initializing LMDB or in-memory storage per the options.
@@ -112,11 +115,7 @@ export class Cache {
 
 		if (this.stores.has(key)) return this.stores.get(key) as KVStore<T>;
 
-		const backend = this.lmdb
-			? new LMDBBackend<T>(this.lmdb.openDB({ name: key }))
-			: new MemoryBackend<T>();
-
-		const store = new KVStore<T>(backend);
+		const store = new KVStore<T>(this.openBackend<T>(key));
 
 		this.stores.set(key, store);
 
@@ -140,11 +139,7 @@ export class Cache {
 
 		if (this.stores.has(key)) return this.stores.get(key) as ObjectStore<T>;
 
-		const backend = this.lmdb
-			? new LMDBBackend<ObjectEntry>(this.lmdb.openDB({ name: key }))
-			: new MemoryBackend<ObjectEntry>();
-
-		const store = new ObjectStore<T>(backend);
+		const store = new ObjectStore<T>(this.openBackend<ObjectEntry>(key));
 
 		this.stores.set(key, store);
 
@@ -168,23 +163,23 @@ export class Cache {
 
 		if (this.stores.has(key)) return this.stores.get(key) as GraphStore;
 
-		const forwardBackend = this.lmdb
-			? new LMDBBackend<string[]>(
-					this.lmdb.openDB({ name: `${key}:forward` }),
-				)
-			: new MemoryBackend<string[]>();
-
-		const reverseBackend = this.lmdb
-			? new LMDBBackend<string[]>(
-					this.lmdb.openDB({ name: `${key}:reverse` }),
-				)
-			: new MemoryBackend<string[]>();
-
-		const store = new GraphStore(forwardBackend, reverseBackend);
+		const store = new GraphStore(
+			this.openBackend<string[]>(`${key}:forward`),
+			this.openBackend<string[]>(`${key}:reverse`),
+		);
 
 		this.stores.set(key, store);
 
 		return store;
+	}
+
+	/**
+	 * Commits every store's buffered writes to persistent storage.
+	 *
+	 * Reads flush their own store automatically, so this is only needed as an explicit durability checkpoint.
+	 */
+	flush(): void {
+		for (const backend of this.backends) backend.flush();
 	}
 
 	/**
@@ -195,10 +190,10 @@ export class Cache {
 	async clear(): Promise<void> {
 		await this.closeBackend();
 
-		// Wait for filesystem to release locks (Windows)
+		// * wait for filesystem to release locks
+		// * important for execution on Windows
 		await new Promise((resolve) => setTimeout(resolve, 100));
 
-		// Remove cache directory
 		if (await fs.pathExists(this.path)) {
 			await fs.remove(this.path);
 
@@ -248,9 +243,28 @@ export class Cache {
 	}
 
 	/**
-	 * Closes the LMDB handle if open and discards the cached stores.
+	 * Opens a storage backend under the given database name: LMDB-backed when persistent, in-memory otherwise.
+	 *
+	 * @param name Database name the backend is bound to.
+	 *
+	 * @returns The opened backend.
+	 */
+	private openBackend<V>(name: string): StorageBackend<V> {
+		const backend = this.lmdb
+			? new LMDBBackend<V>(this.lmdb.openDB<V, CacheKey>({ name }))
+			: new MemoryBackend<V>();
+
+		this.backends.push(backend);
+
+		return backend;
+	}
+
+	/**
+	 * Flushes buffered writes, closes the LMDB handle if open, and discards the cached stores.
 	 */
 	private async closeBackend(): Promise<void> {
+		this.flush();
+
 		if (this.lmdb) {
 			await this.lmdb.close();
 
@@ -258,5 +272,7 @@ export class Cache {
 		}
 
 		this.stores.clear();
+
+		this.backends.length = 0;
 	}
 }

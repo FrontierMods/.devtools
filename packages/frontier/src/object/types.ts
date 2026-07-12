@@ -24,6 +24,17 @@ export type IDResolvableObject = GameObject & {
 };
 
 /**
+ * A {@link GameObject} as parsed from disk, before ID normalization.
+ *
+ * Any ID property may still hold an array of aliases rather than a single value, a base-game quirk (e.g. overmap terrain aliases).
+ */
+export type LoadableGameObject = {
+	[key in keyof GameObject]: key extends IDProperty
+		? string | string[] | undefined
+		: GameObject[key];
+};
+
+/**
  * Compound key in `modId:type:id` form, the registry's unique handle for one object across all mods.
  */
 export type CompoundKey = `${ModID}:${ObjectType}:${ObjectID}`;

@@ -1,0 +1,18 @@
+diff --git a/index.js b/index.js
+index 1a8dbec568d56432d539df5380b5efde9eebbc38..e5096e0ef8a5a8a59237b56f34bfa90082f06016 100644
+--- a/index.js
++++ b/index.js
+@@ -373,7 +373,12 @@ const readString =
+ 				position = getPosition();
+ 				return value;
+ 			};
+-		})((new Function('fromCharCode', 'let position; let readString = ' + makeStringBuilder() +
++		})((new Function('fromCharCode', 'let position; let pendingSurrogate; ' +
++			// finishUtf8 references `position`/`pendingSurrogate`, but new Function compiles
++			// in global scope and can't close over the module-level copies, so embed its
++			// source here to bind it to this function's local (synced) `position`.
++			'let finishUtf8 = ' + finishUtf8.toString() + '; ' +
++			'let readString = ' + makeStringBuilder() +
+ 			';return {' +
+ 			'setPosition(p) { position = p },' +
+ 			'getPosition() { return position },' +

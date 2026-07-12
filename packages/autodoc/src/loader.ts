@@ -3,31 +3,31 @@
  */
 
 import {
+	aggregateFingerprint,
 	Cache,
-	getFileMetadata,
+	collectObjectIndexEntries,
 	hasObjectID,
 	ID_PROPERTIES,
 	isBaseGame,
+	OBJECT_STORE_NAMESPACE,
 	pluralize,
 	type ModWorkspace,
 	readFile,
 	readFiles,
-	resolveObjectID,
+	readObjectIndexMeta,
+	resolveObjectIDs,
+	statFiles,
+	writeObjectIndex,
 	type CanonicalPath,
-	type FileMetadata,
+	type LoadableGameObject,
 	type ModID,
-	type ObjectID,
+	type ObjectIndexEntries,
 } from "@frmds/frontier";
 import path from "path";
 import { TYPE_LOAD_SKIP } from "./constants.ts";
 import { modResolver } from "./context.ts";
-import {
-	createLazyDependencySource,
-	readDependencyIndexMeta,
-	writeDependencyIndex,
-} from "./lazy-source.ts";
+import { createLazyDependencySource } from "./lazy-source.ts";
 import { AUTODOC_LOGGER } from "./logger.ts";
-import { aggregateFingerprint } from "./manifest/fingerprint.ts";
 import type {
 	FileContext,
 	GameObject,
@@ -35,19 +35,10 @@ import type {
 } from "./types/types.ts";
 
 /**
- * One recognized ID property name.
+ * A cached-load result carrying each file's raw parsed objects, for index derivation.
  */
-type IDProperty = (typeof ID_PROPERTIES)[number];
-
-/**
- * A {@link GameObject} as parsed from disk, before ID normalization.
- *
- * Any {@link IDProperty} may still hold an array of aliases rather than a single value.
- */
-export type LoadableGameObject = {
-	[key in keyof GameObject]: key extends IDProperty
-		? string | string[] | undefined
-		: GameObject[key];
+type CachedLoadResult = LoadFilesResult & {
+	rawObjectsBySource: Map<CanonicalPath, LoadableGameObject[]>;
 };
 
 /**
@@ -56,10 +47,10 @@ export type LoadableGameObject = {
 const logger = AUTODOC_LOGGER.getChild("loader");
 
 /**
- * Expands objects that use array-valued `id` aliases into one object per ID.
+ * Expands objects that use array-valued ID aliases into one object per ID.
  *
  * DDA allows `id: ["a", "b"]` for some types (e.g., overmap terrain aliases).
- * Our registry expects one string ID per object key, so this normalization preserves aliases by emitting cloned objects with singular IDs.
+ * Our registry expects one string ID per object key, so this normalization preserves aliases by emitting cloned objects with singular IDs. Alias rules (trimming, dropping non-strings and empties) live in {@link resolveObjectIDs}.
  *
  * @param objects The parsed objects to expand.
  * @param sourcePath The file the objects were parsed from.
@@ -70,46 +61,24 @@ function expandAliasedObjectIds(
 	objects: LoadableGameObject[],
 	sourcePath: CanonicalPath,
 ): GameObject[] {
-	const expandedObjects = [];
+	const expandedObjects: GameObject[] = [];
 
 	let expandedAliasCount = 0;
 
 	for (const object of objects) {
-		const idLikeProperty = ID_PROPERTIES.find((property) =>
-			Array.isArray(object[property]),
-		);
+		const resolved = resolveObjectIDs(object);
+		const [first] = resolved;
 
-		if (!idLikeProperty) {
+		if (!first || !Array.isArray(object[first.property])) {
 			expandedObjects.push(object as GameObject);
 
 			continue;
 		}
 
-		const idLikeValue = object[idLikeProperty];
+		for (const { id, property } of resolved)
+			expandedObjects.push({ ...object, [property]: id } as GameObject);
 
-		const aliasIds = (Array.isArray(idLikeValue) ? idLikeValue : [])
-			.filter((aliasId): aliasId is string => typeof aliasId === "string")
-			.map((aliasId) => aliasId.trim())
-			.filter((aliasId) => aliasId.length > 0);
-
-		if (!aliasIds.length) {
-			logger.debug(
-				`Skipping object with invalid array-valued \`${idLikeProperty}\` in ${sourcePath}: ${JSON.stringify(idLikeValue)}`,
-			);
-
-			continue;
-		}
-
-		for (const aliasId of aliasIds) {
-			const expandedObject = {
-				...object,
-				[idLikeProperty]: aliasId,
-			} as GameObject;
-
-			expandedObjects.push(expandedObject);
-		}
-
-		expandedAliasCount += aliasIds.length - 1;
+		expandedAliasCount += resolved.length - 1;
 	}
 
 	if (expandedAliasCount > 0)
@@ -151,7 +120,7 @@ async function loadDependency(
 		const fingerprint =
 			knownFingerprint ?? aggregateFingerprint(await statFiles(modFiles));
 
-		const meta = readDependencyIndexMeta(cache);
+		const meta = readObjectIndexMeta(cache);
 
 		if (meta && meta.fingerprint === fingerprint) {
 			workspace.registerLazySource(
@@ -172,45 +141,18 @@ async function loadDependency(
 		}
 
 		const result = await loadWithCache(modFiles, modId, cache, workspace);
+		const entries: ObjectIndexEntries = new Map();
 
-		writeDependencyIndex(
-			cache,
-			fingerprint,
-			buildIdIndexFromContexts(result.fileContexts),
-			modFiles,
-		);
+		for (const [sourcePath, objects] of result.rawObjectsBySource)
+			collectObjectIndexEntries(entries, sourcePath, objects);
+
+		writeObjectIndex(cache, entries, fingerprint, modFiles);
 		await cache.close();
 
 		return result;
 	}
 
 	return loadFromDisk(modFiles, modId, workspace);
-}
-
-/**
- * Builds an index of owning files per object ID, from freshly-loaded file contexts. IDs are post alias expansion, matching what lazy hydration produces.
- *
- * @param fileContexts The freshly-loaded file contexts to index.
- *
- * @returns A map from each object ID to the files that own it.
- */
-function buildIdIndexFromContexts(
-	fileContexts: FileContext[],
-): Map<ObjectID, CanonicalPath[]> {
-	const filesByObjectId = new Map<ObjectID, CanonicalPath[]>();
-
-	for (const { sourcePath, objects } of fileContexts) {
-		for (const object of objects) {
-			const { id } = resolveObjectID(object);
-			const owningFiles = filesByObjectId.get(id) ?? [];
-
-			if (!owningFiles.includes(sourcePath)) owningFiles.push(sourcePath);
-
-			filesByObjectId.set(id, owningFiles);
-		}
-	}
-
-	return filesByObjectId;
 }
 
 /**
@@ -231,9 +173,13 @@ async function loadWithCache(
 	modId: ModID,
 	cache: Cache,
 	workspace: ModWorkspace,
-): Promise<LoadFilesResult> {
-	const cacheStore = cache.objects<LoadableGameObject>("objects");
+): Promise<CachedLoadResult> {
+	const cacheStore = cache.objects<LoadableGameObject>(
+		OBJECT_STORE_NAMESPACE,
+	);
+
 	const fileContexts: FileContext[] = [];
+	const rawObjectsBySource = new Map<CanonicalPath, LoadableGameObject[]>();
 	const metadataByFile = await statFiles(files);
 
 	let objectsLoaded = 0;
@@ -259,6 +205,8 @@ async function loadWithCache(
 			await cacheStore.setObjects(filePath, loadableObjects, metadata);
 		}
 
+		rawObjectsBySource.set(filePath, loadableObjects);
+
 		objectsLoaded += loadObjectsIntoFile(
 			loadableObjects,
 			modId,
@@ -277,7 +225,12 @@ async function loadWithCache(
 		`Loaded ${modId}: ${files.length} ${pluralize(files.length, "file")}, ${cacheHits} cache ${pluralize(cacheHits, "hit")}, ${objectsLoaded} ${pluralize(objectsLoaded, "object")}`,
 	);
 
-	return { filesLoaded: files.length, objectsLoaded, fileContexts };
+	return {
+		filesLoaded: files.length,
+		objectsLoaded,
+		fileContexts,
+		rawObjectsBySource,
+	};
 }
 
 /**
@@ -327,32 +280,6 @@ async function loadFromDisk(
 	);
 
 	return { filesLoaded: files.length, objectsLoaded, fileContexts };
-}
-
-/**
- * Stats all files in parallel for cache validation.
- * One batched pass beats per-file stats inside the load loop. Missing files are simply absent from the map, which downstream treats as a cache miss.
- *
- * @param files The files to stat.
- *
- * @returns A map from each file to its metadata, omitting unreadable files.
- */
-export async function statFiles(
-	files: CanonicalPath[],
-): Promise<Map<CanonicalPath, FileMetadata>> {
-	const metadataByFile = new Map<CanonicalPath, FileMetadata>();
-
-	await Promise.all(
-		files.map(async (filePath) => {
-			try {
-				metadataByFile.set(filePath, await getFileMetadata(filePath));
-			} catch {
-				// missing or unreadable file: leave unmapped, the loader re-reads it
-			}
-		}),
-	);
-
-	return metadataByFile;
 }
 
 /**
