@@ -102,9 +102,12 @@ frontier lookup wooden_grip
 # narrow to one object type
 frontier lookup wooden_grip --type recipe
 
-# bare JSON of the first match
-# use `--type` to narrow returned object
+# bare JSON array of every match
+# use `--type` to narrow returned objects
 frontier lookup wooden_grip --json
+
+# first match only: one file-path-and-object pair, or with `--json` a bare object
+frontier lookup wooden_grip --json --first
 
 # no exact match: suggests valid IDs, exits with code 1
 # IDs are sorted by substring then Levenshtein-distance match
