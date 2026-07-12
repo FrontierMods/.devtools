@@ -32,6 +32,11 @@ interface LookupFlags extends CoreFlags {
 	json?: boolean;
 	/** Limits output to the first match. With `--json`, prints it as a bare object instead of an array. */
 	first?: boolean;
+	/**
+	 * Prints only the owning file paths, one per line.
+	 * With `--json`, prints them as a string array.
+	 */
+	path?: boolean;
 	/** Overrides the game install, a registered commit hash or a path. */
 	game?: string;
 }
@@ -50,8 +55,10 @@ export const LOOKUP_COMMAND = buildCommand({
 		flags: LookupFlags,
 		query: string,
 	) {
-		// * skip logging on `--json`, which is intended to emit raw JSON
-		await configureLogger(flags.json ? { ...flags, silent: true } : flags);
+		// * skip logging on machine-oriented output, which is intended for piping
+		await configureLogger(
+			flags.json || flags.path ? { ...flags, silent: true } : flags,
+		);
 
 		try {
 			const install = resolveGamePath({
@@ -86,7 +93,11 @@ export const LOOKUP_COMMAND = buildCommand({
 
 				const selected = flags.first ? matches.slice(0, 1) : matches;
 
+				if (flags.path) return printPaths(selected, flags);
 				if (flags.json) return printJSON(selected, flags.first);
+
+				if (matches.length > 1)
+					console.error(`${matches.length} matches`);
 
 				printObjects(selected);
 			} finally {
@@ -117,6 +128,11 @@ export const LOOKUP_COMMAND = buildCommand({
 			first: {
 				kind: "boolean",
 				brief: "Limit output to the first match",
+				optional: true,
+			},
+			path: {
+				kind: "boolean",
+				brief: "Print only the owning file paths, one per line",
 				optional: true,
 			},
 			game: {
@@ -201,6 +217,28 @@ function printJSON(
 	const objects = matches.map(([, object]) => object);
 
 	console.log(JSON.stringify(first ? objects[0] : objects, null, 2));
+}
+
+/**
+ * Prints only the owning file paths.
+ * Prints one per line by default, or as a JSON string array when used with `--json`.
+ *
+ * @param matches Owning-file and object pairs whose paths to print.
+ * @param flags The command's flags shaping the output.
+ */
+function printPaths(
+	matches: [CanonicalPath, LoadableGameObject][],
+	flags: LookupFlags,
+): void {
+	const paths = matches.map(([file]) => file);
+
+	if (flags.json) {
+		console.log(JSON.stringify(flags.first ? paths[0] : paths, null, 2));
+
+		return;
+	}
+
+	for (const file of paths) console.log(file);
 }
 
 /**
