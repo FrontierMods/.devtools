@@ -22,11 +22,16 @@ describe("multiplyPockets", () => {
 			CONTEXT,
 		);
 
+		const cleanedPocket = {
+			description: "Pouch",
+			pocket_type: "CONTAINER",
+		};
+
 		expect(patches).toEqual([
 			{ op: "remove", path: [] },
-			{ op: "insert", path: [], value: { description: "Pouch" } },
-			{ op: "insert", path: [], value: { description: "Pouch" } },
-			{ op: "insert", path: [], value: { description: "Pouch" } },
+			{ op: "insert", path: [], value: cleanedPocket },
+			{ op: "insert", path: [], value: cleanedPocket },
+			{ op: "insert", path: [], value: cleanedPocket },
 		]);
 	});
 });
