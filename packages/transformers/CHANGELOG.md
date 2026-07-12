@@ -1,5 +1,13 @@
 # @frmds/transformers
 
+## 1.0.5
+
+### Patch Changes
+
+- Updated dependencies [e690fd8]
+    - @frmds/frontier@0.8.0
+    - @frmds/autodoc@0.8.4
+
 ## 1.0.4
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
 	"name": "@frmds/autodoc",
-	"version": "0.8.3",
+	"version": "0.8.4",
 	"description": "Processes JSON5 files for Frontier Mods, a collection of mods for the game Cataclysm: Dark Days Ahead",
 	"keywords": [
 		"frontier-plugin"
@@ -56,7 +56,7 @@
 		"preuninstall": "frontier plugins remove @frmds/autodoc || exit 0"
 	},
 	"dependencies": {
-		"@frmds/frontier": "^0.7.0",
+		"@frmds/frontier": "^0.8.0",
 		"@logtape/file": "^2.2.0",
 		"@logtape/logtape": "^2.2.0",
 		"@logtape/pretty": "^2.2.0",
