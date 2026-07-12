@@ -10,7 +10,7 @@ export type { AppPaths } from "./locations.ts";
 /* # CACHE SERVICE */
 
 export { Cache } from "./cache/cache.ts";
-export type { CacheOptions } from "./cache/types.ts";
+export type { CacheKey, CacheOptions } from "./cache/types.ts";
 export { getFileMetadata, hasFileChanged } from "./cache/validation.ts";
 export type { FileMetadata } from "./cache/validation.ts";
 
@@ -141,6 +141,7 @@ export {
 	makeKeyFromObject,
 	readKey,
 	resolveObjectID,
+	resolveObjectIDs,
 } from "./object/identity.ts";
 export { InMemoryObjectRegistry } from "./object/registry.ts";
 export {
@@ -172,12 +173,36 @@ export type {
 	CompoundKey,
 	GameObject,
 	IDProperty,
+	LoadableGameObject,
 	ObjectMetadata,
 	ObjectRegistry,
 	ReadableObjectRegistry,
 	ResolvedID,
 	RegistryEventHandler as WriteHandler,
 } from "./object/types.ts";
+
+/* # OBJECT INDEX */
+
+export {
+	aggregateFingerprint,
+	collectObjectIndexEntries,
+	ensureObjectIndex,
+	findOwningFiles,
+	listIndexKeys,
+	OBJECT_INDEX_VERSION,
+	OBJECT_STORE_NAMESPACE,
+	readIndexedObjects,
+	readObjectIndexMeta,
+	statFiles,
+	writeObjectIndex,
+} from "./object-index/object-index.ts";
+export type {
+	IndexFreshness,
+	ObjectIndexEntries,
+	ObjectIndexKey,
+	ObjectIndexMeta,
+	OwningEntry,
+} from "./object-index/object-index.ts";
 
 /* # OBJECT ACCESS */
 

@@ -2,10 +2,11 @@
  * @file Assembles the CLI root route map, folding active plugins into a `run` namespace.
  */
 
-import type { CommandContext, RouteMap } from "@stricli/core";
+import type { Command, CommandContext, RouteMap } from "@stricli/core";
 import { buildRouteMap } from "@stricli/core";
 import { CONFIG_ROUTE_MAP } from "./config/route.ts";
 import { GAME_ROUTE_MAP } from "./game/route.ts";
+import { LOOKUP_COMMAND } from "./lookup/route.ts";
 import { MOD_ROUTE_MAP } from "./mod/route.ts";
 import { loadPlugins } from "./plugin/manager.ts";
 import { readRegistry } from "./plugin/registry.ts";
@@ -52,9 +53,13 @@ export async function buildRootRoute(): Promise<RouteMap<CommandContext>> {
 		]),
 	);
 
-	const routes: Record<string, RouteMap<CommandContext>> = {
+	const routes: Record<
+		string,
+		RouteMap<CommandContext> | Command<CommandContext>
+	> = {
 		config: CONFIG_ROUTE_MAP,
 		game: GAME_ROUTE_MAP,
+		lookup: LOOKUP_COMMAND,
 		mod: MOD_ROUTE_MAP,
 		plugins: PLUGINS_ROUTE_MAP,
 	};

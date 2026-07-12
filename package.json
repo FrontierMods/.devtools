@@ -12,5 +12,8 @@
 		"oxlint": "^1.70.0",
 		"oxlint-frontier-style": "^1.1.2",
 		"oxlint-tsgolint": "^0.23.0"
+	},
+	"patchedDependencies": {
+		"ordered-binary@1.6.1": "patches/ordered-binary@1.6.1.patch"
 	}
 }

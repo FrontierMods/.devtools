@@ -4,43 +4,21 @@
  * Index freshness is the caller's responsibility, so reads here are trusted.
  */
 
+import {
+	findOwningFiles,
+	OBJECT_STORE_NAMESPACE,
+	readObjectIndexMeta,
+} from "@frmds/frontier";
 import type {
 	Cache,
 	CanonicalPath,
 	LazyObjectSource,
+	LoadableGameObject,
 	ModID,
 	ModWorkspace,
-	ObjectID,
 } from "@frmds/frontier";
-import { loadObjectsIntoFile, type LoadableGameObject } from "./loader.ts";
+import { loadObjectsIntoFile } from "./loader.ts";
 import { AUTODOC_LOGGER } from "./logger.ts";
-
-/**
- * Validity gate for the persisted index.
- */
-export interface DependencyIndexMeta {
-	/** Bump when the index schema changes. */
-	version: number;
-	/** Aggregate fingerprint of the mod's file set at index-build time. */
-	fingerprint: string;
-	/** Every cached file of the mod, for `hydrateAll`. */
-	files: CanonicalPath[];
-}
-
-/**
- * Cache namespace mapping each object ID to its owning files.
- */
-const INDEX_NAMESPACE = "object-id-index";
-
-/**
- * Cache namespace holding the index validity meta.
- */
-const META_NAMESPACE = "object-id-index-meta";
-
-/**
- * Sole key under which the meta record is stored.
- */
-const META_KEY = "meta";
 
 /**
  * Child logger scoped to lazy hydration.
@@ -48,56 +26,11 @@ const META_KEY = "meta";
 const logger = AUTODOC_LOGGER.getChild("lazy");
 
 /**
- * Bump when the index schema changes.
- */
-export const INDEX_VERSION = 1;
-
-/**
- * Persists the ID index and its validity meta after an eager (cold) load.
- *
- * @param cache The dependency mod's cache to persist into.
- * @param fingerprint The mod's aggregate fingerprint at load time.
- * @param filesByObjectId Owning files per object ID (IDs post alias expansion).
- * @param files All cached files of the mod.
- */
-export function writeDependencyIndex(
-	cache: Cache,
-	fingerprint: string,
-	filesByObjectId: Map<ObjectID, CanonicalPath[]>,
-	files: CanonicalPath[],
-): void {
-	const indexStore = cache.kv<CanonicalPath[]>(INDEX_NAMESPACE);
-
-	for (const [objectId, owningFiles] of filesByObjectId)
-		indexStore.set(objectId, owningFiles);
-
-	cache.kv<DependencyIndexMeta>(META_NAMESPACE).set(META_KEY, {
-		version: INDEX_VERSION,
-		fingerprint,
-		files,
-	});
-}
-
-/**
- * Reads the index meta, returning `undefined` when absent or schema-mismatched.
- *
- * @param cache The dependency mod's cache to read from.
- *
- * @returns The stored meta record, or `undefined` when missing or stale.
- */
-export function readDependencyIndexMeta(
-	cache: Cache,
-): DependencyIndexMeta | undefined {
-	const meta = cache.kv<DependencyIndexMeta>(META_NAMESPACE).get(META_KEY);
-
-	if (!meta || meta.version !== INDEX_VERSION) return undefined;
-
-	return meta;
-}
-
-/**
  * Builds the lazy source for one cached dependency mod.
  * The cache must outlive the build. The caller owns closing it.
+ *
+ * Hydration may load a file whose target object is then skipped by type.
+ * The miss stays a miss and the file is not revisited.
  *
  * @param cache The dependency mod's open cache, which must outlive the build.
  * @param modId The dependency mod being lazily hydrated.
@@ -110,9 +43,11 @@ export function createLazyDependencySource(
 	modId: ModID,
 	workspace: ModWorkspace,
 ): LazyObjectSource {
-	const objectStore = cache.objects<LoadableGameObject>("objects");
-	const indexStore = cache.kv<CanonicalPath[]>(INDEX_NAMESPACE);
-	const meta = readDependencyIndexMeta(cache);
+	const objectStore = cache.objects<LoadableGameObject>(
+		OBJECT_STORE_NAMESPACE,
+	);
+
+	const meta = readObjectIndexMeta(cache);
 	const hydratedFiles = new Set<CanonicalPath>();
 
 	function hydrateFile(filePath: CanonicalPath): boolean {
@@ -131,14 +66,11 @@ export function createLazyDependencySource(
 
 	return {
 		hydrate(id) {
-			const owningFiles = indexStore.get(id);
-
-			if (!owningFiles) return false;
-
 			let hydrated = false;
 
-			for (const filePath of owningFiles)
-				hydrated = hydrateFile(filePath) || hydrated;
+			for (const { files } of findOwningFiles(cache, id))
+				for (const filePath of files)
+					hydrated = hydrateFile(filePath) || hydrated;
 
 			return hydrated;
 		},

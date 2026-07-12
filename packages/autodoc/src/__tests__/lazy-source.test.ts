@@ -3,12 +3,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { Cache, ModWorkspace } from "@frmds/frontier";
-import type { CanonicalPath, ModID } from "@frmds/frontier";
-import {
-	createLazyDependencySource,
-	writeDependencyIndex,
-} from "../lazy-source.ts";
+import { Cache, ModWorkspace, writeObjectIndex } from "@frmds/frontier";
+import type { CanonicalPath, ModID, ObjectType } from "@frmds/frontier";
+import { createLazyDependencySource } from "../lazy-source.ts";
 
 /**
  * Base game mod ID under test.
@@ -37,13 +34,19 @@ async function makeCache(): Promise<Cache> {
 	await store.setObjects(ITEMS, [{ id: "steel", type: "material" }]);
 	await store.setObjects(TOOLS, [{ id: "hammer", type: "TOOL" }]);
 
-	writeDependencyIndex(
+	writeObjectIndex(
 		cache,
-		"fingerprint-a",
 		new Map([
-			["steel", [ITEMS]],
-			["hammer", [TOOLS]],
-		]) as never,
+			[
+				"steel",
+				new Map<ObjectType, CanonicalPath[]>([["material", [ITEMS]]]),
+			],
+			[
+				"hammer",
+				new Map<ObjectType, CanonicalPath[]>([["TOOL", [TOOLS]]]),
+			],
+		]),
+		"fingerprint-a",
 		[ITEMS, TOOLS],
 	);
 

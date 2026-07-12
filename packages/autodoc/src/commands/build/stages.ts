@@ -3,6 +3,7 @@
  */
 
 import {
+	aggregateFingerprint,
 	Cache,
 	type CanonicalPath,
 	type CompoundKey,
@@ -15,17 +16,17 @@ import {
 	ModWorkspace,
 	pluralize,
 	readSchemaPin,
+	statFiles,
 	type WriteResult,
 } from "@frmds/frontier";
 import fs from "fs-extra";
 import path from "path";
 
 import { config, modResolver } from "../../context.ts";
-import { loadDependencies, loadFiles, statFiles } from "../../loader.ts";
+import { loadDependencies, loadFiles } from "../../loader.ts";
 import { AUTODOC_LOGGER } from "../../logger.ts";
 import { computeDirtySources } from "../../manifest/dirty.ts";
 import {
-	aggregateFingerprint,
 	environmentFingerprint,
 	type TransformerIdentity,
 } from "../../manifest/fingerprint.ts";
