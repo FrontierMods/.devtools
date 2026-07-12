@@ -109,6 +109,9 @@ frontier lookup wooden_grip --json
 # first match only: one file-path-and-object pair, or with `--json` a bare object
 frontier lookup wooden_grip --json --first
 
+# only the owning file paths, one per line, or with `--json` a string array
+frontier lookup wooden_grip --path
+
 # no exact match: suggests valid IDs, exits with code 1
 # IDs are sorted by substring then Levenshtein-distance match
 frontier lookup woode
