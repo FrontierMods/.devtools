@@ -10,6 +10,7 @@ import {
 	type GameObject,
 	type IDResolvableObject,
 	ID_PROPERTIES,
+	type LoadableGameObject,
 	type ResolvedID,
 } from "./types.ts";
 
@@ -77,6 +78,35 @@ export function resolveObjectID(object: GameObject): ResolvedID {
 	throw new Error(
 		`resolveObjectID(): Unable to resolve object ID, object is unprocessable. Ensure all objects have \`id\` or \`abstract\`.\nObject:\n${JSON.stringify(object, null, 2)}`,
 	);
+}
+
+/**
+ * Extracts every identifying value from an object, expanding array-valued aliases.
+ *
+ * The first {@link ID_PROPERTIES} entry holding a usable value wins, matching {@link resolveObjectID} priority. Array values are trimmed, with non-strings and empties dropped.
+ *
+ * @param object The parsed object to resolve IDs for.
+ *
+ * @returns One {@link ResolvedID} per alias, or empty when the object has no usable ID.
+ */
+export function resolveObjectIDs(object: LoadableGameObject): ResolvedID[] {
+	for (const property of ID_PROPERTIES) {
+		const value = object[property];
+
+		if (typeof value === "string" && value.trim().length)
+			return [{ id: value.trim(), property }];
+
+		if (Array.isArray(value)) {
+			const ids = value
+				.filter((alias): alias is string => typeof alias === "string")
+				.map((alias) => alias.trim())
+				.filter((alias) => alias.length > 0);
+
+			return ids.map((id) => ({ id, property }));
+		}
+	}
+
+	return [];
 }
 
 /**

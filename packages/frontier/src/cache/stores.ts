@@ -5,7 +5,7 @@
 import fs from "fs-extra";
 import type { CanonicalPath } from "../types/data.ts";
 import type { StorageBackend } from "./backend.ts";
-import type { ObjectEntry } from "./types.ts";
+import type { CacheKey, ObjectEntry } from "./types.ts";
 import { getFileMetadata, type FileMetadata } from "./validation.ts";
 
 /**
@@ -98,7 +98,7 @@ export class KVStore<T> {
 	 *
 	 * @returns The stored value, or `undefined` when the key is absent.
 	 */
-	get(key: string): T | undefined {
+	get(key: CacheKey): T | undefined {
 		return this.backend.get(key);
 	}
 
@@ -108,7 +108,7 @@ export class KVStore<T> {
 	 * @param key Key to write under.
 	 * @param value Value to store.
 	 */
-	set(key: string, value: T): void {
+	set(key: CacheKey, value: T): void {
 		this.backend.put(key, value);
 	}
 
@@ -117,8 +117,28 @@ export class KVStore<T> {
 	 *
 	 * @param key Key whose value is removed.
 	 */
-	delete(key: string): void {
+	delete(key: CacheKey): void {
 		this.backend.remove(key);
+	}
+
+	/**
+	 * Iterates every stored key and value pair.
+	 *
+	 * @returns An iterator over key and value pairs.
+	 */
+	entries(): IterableIterator<[CacheKey, T]> {
+		return this.backend.entries();
+	}
+
+	/**
+	 * Iterates array-keyed entries whose leading elements equal the prefix.
+	 *
+	 * @param prefix Leading key elements to match.
+	 *
+	 * @returns An iterator over matching key and value pairs.
+	 */
+	prefixEntries(prefix: string[]): IterableIterator<[CacheKey, T]> {
+		return this.backend.prefixEntries(prefix);
 	}
 
 	/** Removes all stored values. */

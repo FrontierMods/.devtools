@@ -91,6 +91,30 @@ frontier mod version set v1.2.0
 
 On a mod with no `version` field, plain `up` starts at `v0.1.0` while an explicit kind increments from an implicit `v0.0.0`.
 
+## Looking up game objects
+
+`frontier lookup` finds base-game objects by ID and prints each one with the absolute path of its owning file.
+
+```sh
+# print every object carrying this ID, each with its file path
+frontier lookup wooden_grip
+
+# narrow to one object type
+frontier lookup wooden_grip --type recipe
+
+# bare JSON of the first match
+# use `--type` to narrow returned object
+frontier lookup wooden_grip --json
+
+# no exact match: suggests valid IDs, exits with code 1
+# IDs are sorted by substring then Levenshtein-distance match
+frontier lookup woode
+```
+
+The first run against an install builds a persistent index beside the game data (`<install>/data/.frontier/`), shared with autodoc builds. Later runs are instant while the game files are unchanged. With several registered installs, pass `--game <sha|path>`.
+
+Queries that match no ID exactly return ranked suggestions: substring matches first, then close typos.
+
 ## For plugin authors
 
 Frontier is also the shared library every plugin imports. Its public API groups the reusable components by concern:
