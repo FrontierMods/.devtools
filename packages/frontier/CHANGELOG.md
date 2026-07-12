@@ -1,5 +1,12 @@
 # @frmds/frontier
 
+## 0.8.0
+
+### Minor Changes
+
+- e690fd8: Add object lookup tool: `frontier lookup <id>` to quickly find object(s) matching provided ID
+  Rework object cache to accomodate the lookup tool
+
 ## 0.7.0
 
 ### Minor Changes
