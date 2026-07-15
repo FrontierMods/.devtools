@@ -8,7 +8,6 @@ import {
 	isString,
 	readKey,
 	resolveObjectID,
-	type CompoundKey,
 	type ModScope,
 	type Patch,
 } from "@frmds/frontier";
@@ -61,7 +60,7 @@ export function fetchParent(
 	if (!parent) {
 		const candidates = Array.from(objects.entries())
 			.filter(([key]) => {
-				const [, , objectId] = readKey(key as CompoundKey);
+				const [, , objectId] = readKey(key);
 
 				return (
 					objectId === id &&

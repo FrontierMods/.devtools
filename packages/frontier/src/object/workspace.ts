@@ -4,7 +4,7 @@
  * All mutation flows through `apply()`, keeping documents, index, and journal coherent by construction.
  */
 
-import { isBaseGame, isPathDeeper } from "../game/quirks.ts";
+import { ADDITIVE_TYPES, isBaseGame, isPathDeeper } from "../game/quirks.ts";
 import { logger } from "../logger.ts";
 import type { ModID, ModScope } from "../mod/types.ts";
 import { applyPatch, normalizePath, type Patch } from "../patch/patch.ts";
@@ -16,7 +16,13 @@ import type {
 } from "../types/data.ts";
 import { deepEqual } from "../validation.ts";
 import { ObjectRegistryError } from "./error.ts";
-import { makeKeyFromObject, matchesKey, readKey } from "./identity.ts";
+import {
+	makeKey,
+	makeKeyFromObject,
+	matchesKey,
+	readKey,
+	resolveObjectID,
+} from "./identity.ts";
 import {
 	appendEntry,
 	appendTombstone,
@@ -117,6 +123,8 @@ export class ModWorkspace {
 	/**
 	 * Registers a loaded object as a new timeline in its file document. Mirrors the legacy duplicate policy: identical duplicates are dropped, base-game duplicates resolve by deeper path, conflicting same-mod duplicates throw.
 	 *
+	 * Additive types bypass duplicate resolution: each same-mod duplicate lands under an occurrence-qualified key in load order, so several objects legally share one ID.
+	 *
 	 * @param object The loaded object to register.
 	 * @param modId The mod that owns the object.
 	 * @param sourcePath The source file the object came from.
@@ -124,21 +132,26 @@ export class ModWorkspace {
 	 * @throws ObjectRegistryError When a conflicting same-mod duplicate is loaded.
 	 */
 	load(object: GameObject, modId: ModID, sourcePath: CanonicalPath): void {
-		const key = makeKeyFromObject(object, modId);
+		let key = makeKeyFromObject(object, modId);
+
 		const existing = this.locate(key);
 
 		if (existing && !isTimelineTombstoned(existing.timeline)) {
-			const resolution = resolveDuplicate(
-				existing,
-				object,
-				modId,
-				this.index.get(key)!,
-				sourcePath,
-			);
+			if (ADDITIVE_TYPES.includes(object.type)) {
+				key = this.nextOccurrenceKey(object, modId);
+			} else {
+				const resolution = resolveDuplicate(
+					existing,
+					object,
+					modId,
+					this.index.get(key)!,
+					sourcePath,
+				);
 
-			if (resolution === "keep") return;
+				if (resolution === "keep") return;
 
-			this.removeTimeline(key, existing.timeline);
+				this.removeTimeline(key, existing.timeline);
+			}
 		}
 
 		const timeline = createTimelineForObject(object, { via: "load" });
@@ -360,9 +373,25 @@ export class ModWorkspace {
 	 * @returns The current shapes of the file's live timelines.
 	 */
 	liveProjection(modId: ModID, file: CanonicalPath): GameObject[] {
-		return this.liveTimelines(modId, file).map(
-			(timeline) => timelineCurrent(timeline)!,
-		);
+		return this.keyedProjection(modId, file).map(([, object]) => object);
+	}
+
+	/**
+	 * Returns the current shapes of a file's live timelines paired with their keys, so consumers never re-derive keys from raw shapes.
+	 *
+	 * @param modId The mod owning the file document.
+	 * @param file The file document to project.
+	 *
+	 * @returns Compound-key and current-shape pairs of the file's live timelines.
+	 */
+	keyedProjection(
+		modId: ModID,
+		file: CanonicalPath,
+	): [CompoundKey, GameObject][] {
+		return this.liveTimelines(modId, file).map((timeline) => [
+			this.keyOf(timeline, modId),
+			timelineCurrent(timeline)!,
+		]);
 	}
 
 	/**
@@ -431,6 +460,25 @@ export class ModWorkspace {
 		}
 
 		return key;
+	}
+
+	/**
+	 * Returns the next free occurrence-qualified key for an additive object. Occurrences start at `2`: the first object keeps the plain key.
+	 *
+	 * @param object The additive object being loaded.
+	 * @param modId The mod that owns the object.
+	 *
+	 * @returns The next free occurrence-qualified key.
+	 */
+	private nextOccurrenceKey(object: GameObject, modId: ModID): CompoundKey {
+		const id = resolveObjectID(object).id;
+
+		let occurrence = 2;
+
+		while (this.index.has(makeKey(id, object.type, modId, occurrence)))
+			occurrence++;
+
+		return makeKey(id, object.type, modId, occurrence);
 	}
 
 	/**

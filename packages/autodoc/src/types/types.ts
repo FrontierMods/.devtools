@@ -212,8 +212,8 @@ export interface FileContext {
 	sourcePath: CanonicalPath;
 	/** ID of the mod that owns the file. */
 	modId: ModID;
-	/** Objects loaded from the file. */
-	objects: GameObject[];
+	/** Keyed object tuples. */
+	entries: [CompoundKey, GameObject][];
 }
 
 /**
@@ -234,22 +234,14 @@ export interface LoadFilesResult {
  * Processing item with metadata for topological sort.
  */
 export interface ProcessingItem {
+	/** Object's compound key. */
+	key: CompoundKey;
 	/** The object to process. */
 	object: GameObject;
 	/** ID of the mod that owns the object. */
 	modId: ModID;
 	/** Canonical path of the object's source file. */
 	sourcePath: CanonicalPath;
-}
-
-/**
- * Context metadata for an object.
- */
-export interface ObjectContext {
-	/** Canonical path of the object's source file. */
-	sourcePath: CanonicalPath;
-	/** ID of the mod that owns the object. */
-	modId: ModID;
 }
 
 /**

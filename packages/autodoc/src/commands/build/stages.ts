@@ -43,7 +43,6 @@ import type { ReadLog } from "../../object/recording-view.ts";
 import { scanObject } from "../../phases/scan.ts";
 import type {
 	FileContext,
-	ObjectContext,
 	ProcessingItem,
 	Transformer,
 } from "../../types/types.ts";
@@ -153,10 +152,10 @@ export interface ManifestRecordInputs {
 	resolveOwners: QueryResolver;
 	/** Runtime reads from the recording view, keyed by consumer source files. */
 	readsByFile: Map<CanonicalPath, ReadLog>;
-	/** Scan-phase dependencies keyed by object, mapped to files via object contexts. */
+	/** Scan-phase dependencies mapped to files via the processing order. */
 	objectDependencies: Map<CompoundKey, Set<CompoundKey>>;
-	/** Source path and mod for each processed object. */
-	objectContexts: Map<CompoundKey, ObjectContext>;
+	/** The flattened objects in processing order. Used to map dependency keys to source files. */
+	processingOrder: ProcessingItem[];
 	/** Source-to-output pairs actually written this run. */
 	written: WriteResult[];
 }
@@ -336,8 +335,13 @@ export function analyzeDependencies(
 	fileContexts: FileContext[],
 ): AnalyzeDependenciesResult {
 	const processingOrder: ProcessingItem[] = fileContexts.flatMap(
-		({ objects, modId, sourcePath }) =>
-			objects.map((object) => ({ object, modId, sourcePath })),
+		({ entries, modId, sourcePath }) =>
+			entries.map(([key, object]) => ({
+				key,
+				object,
+				modId,
+				sourcePath,
+			})),
 	);
 
 	return {
@@ -451,9 +455,9 @@ export async function computeDirtyStage(
 	}
 
 	const objectsByFile = new Map(
-		fileContexts.map(({ sourcePath, objects, modId }) => [
+		fileContexts.map(({ sourcePath, entries, modId }) => [
 			sourcePath,
-			{ objects, modId },
+			{ entries, modId },
 		]),
 	);
 
@@ -464,7 +468,7 @@ export async function computeDirtyStage(
 
 		const queries = new Set<ReadQuery>();
 
-		for (const object of context.objects) {
+		for (const [, object] of context.entries) {
 			const result = scanObject(object, transformers, {
 				sourcePath: file,
 				modId: context.modId,
@@ -524,14 +528,18 @@ export async function recordBuildManifest(
 		resolveOwners,
 		readsByFile,
 		objectDependencies,
-		objectContexts,
+		processingOrder,
 		written,
 	} = inputs;
+
+	const sourceByKey = new Map(
+		processingOrder.map(({ key, sourcePath }) => [key, sourcePath]),
+	);
 
 	const scanQueriesByFile = new Map<CanonicalPath, Set<ReadQuery>>();
 
 	for (const [key, dependencies] of objectDependencies) {
-		const sourcePath = objectContexts.get(key)?.sourcePath;
+		const sourcePath = sourceByKey.get(key);
 
 		if (!sourcePath) continue;
 

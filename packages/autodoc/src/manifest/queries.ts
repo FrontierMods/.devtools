@@ -12,7 +12,6 @@
 
 import {
 	readKey,
-	resolveObjectID,
 	type CanonicalPath,
 	type CompoundKey,
 	type ObjectID,
@@ -77,9 +76,9 @@ export function buildQueryResolver(fileContexts: FileContext[]): QueryResolver {
 		owners.add(owner);
 	}
 
-	for (const { sourcePath, objects } of fileContexts) {
-		for (const object of objects) {
-			const { id } = resolveObjectID(object);
+	for (const { sourcePath, entries } of fileContexts) {
+		for (const [key, object] of entries) {
+			const [, , id] = readKey(key);
 
 			record(makeQuery(id, object.type), sourcePath);
 			record(makeQuery(id), sourcePath);

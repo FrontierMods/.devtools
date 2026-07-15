@@ -1,5 +1,5 @@
 /**
- * @file Scan phase: walks objects to discover transformer targets and cross-object dependencies.
+ * @file Scan phase: walks objects to discover transformer targets and cross-object dependencies. Emitted execution maps carry targets already deduplicated and in execution order.
  */
 
 import type {
@@ -15,7 +15,6 @@ import {
 	extractErrorMessage,
 	getPluginConfig,
 	makeKey,
-	makeKeyFromObject,
 	resolveObjectID,
 } from "@frmds/frontier";
 import pLimit from "p-limit";
@@ -35,6 +34,7 @@ import {
 	matchesContent,
 	partitionTransformers,
 } from "./targeting.ts";
+import { deduplicateTargets, sortExecutionTargets } from "./sort.ts";
 import type { ScanResults } from "./types.ts";
 
 /**
@@ -161,7 +161,10 @@ export function scanObject(
 
 	return {
 		objectId,
-		executionMap: { objectId, targets },
+		executionMap: {
+			objectId,
+			targets: sortExecutionTargets(deduplicateTargets(targets)),
+		},
 		dependencies,
 	};
 }
@@ -206,12 +209,11 @@ export async function scanAllObjects(
 	for (let index = 0; index < scanResults.length; index++) {
 		const result = scanResults[index]!;
 		const item = items[index]!;
-		const key = makeKeyFromObject(item.object, item.modId);
 
-		executionMaps.set(key, result.executionMap);
+		executionMaps.set(item.key, result.executionMap);
 
 		if (result.dependencies.size)
-			objectDependencies.set(key, result.dependencies);
+			objectDependencies.set(item.key, result.dependencies);
 	}
 
 	return { executionMaps, objectDependencies };

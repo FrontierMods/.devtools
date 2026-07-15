@@ -5,21 +5,6 @@
 import { type ObjectType } from "@frmds/frontier";
 
 /**
- * Object types that cannot be loaded into registry at all.
- *
- * These types have special semantics (like multiple objects with same ID) that our system can't handle.
- */
-export const TYPE_LOAD_SKIP: ObjectType[] = [
-	/**
-	 * Unable to correctly process additive conversation topic files.
-	 * Our system, much like the base game's, requires one object per ID.
-	 *
-	 * It's possible to carve out a special case for this, but we're looking to avoid those.
-	 */
-	"talk_topic",
-];
-
-/**
  * Object types that should be excluded from transformation pipeline but still loaded and output.
  *
  * These types have properties that interfere with transformers (e.g., `math` objects that aren't our math expressions), or contain template values that aren't valid until processed (e.g., `FUNCTION` with argument placeholders).

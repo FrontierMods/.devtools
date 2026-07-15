@@ -113,7 +113,7 @@ export class InMemoryObjectRegistry implements ObjectRegistry {
 	/**
 	 * Stores an object. Throws if object is a conflicting duplicate.
 	 *
-	 * @param object The object to store, which must have `id` or `abstract`.
+	 * @param object The object to store.
 	 * @param modId The mod that owns the object.
 	 * @param sourcePath Source file the object came from, used for duplicate detection and error messages.
 	 *
@@ -141,6 +141,7 @@ export class InMemoryObjectRegistry implements ObjectRegistry {
 						`Skipping duplicate: ID \`${id}\`, type \`${object.type}\` from ${sourcePath} (identical to ${metadata.sourcePath})`,
 					);
 
+					// * skip registration, keep first definition
 					return;
 				}
 

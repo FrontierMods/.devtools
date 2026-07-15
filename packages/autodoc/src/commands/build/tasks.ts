@@ -213,8 +213,8 @@ export function createBuildTasks(flags: BuildFlags): Listr<BuildTaskContext> {
 						ctx.transformers,
 					);
 
-					ctx.sortResults = result.sortResults;
-					ctx.objectContexts = result.objectContexts;
+					ctx.sortedItems = result.sortedItems;
+					ctx.executionMaps = result.executionMaps;
 					ctx.transformers = result.transformers;
 					ctx.objectDependencies = result.objectDependencies;
 
@@ -230,8 +230,8 @@ export function createBuildTasks(flags: BuildFlags): Listr<BuildTaskContext> {
 						task.title,
 						"workspace",
 						"scope",
-						"sortResults",
-						"objectContexts",
+						"sortedItems",
+						"executionMaps",
 						"transformers",
 						"modId",
 					);
@@ -252,8 +252,8 @@ export function createBuildTasks(flags: BuildFlags): Listr<BuildTaskContext> {
 					let lastTitleUpdate = 0;
 
 					const executeResults = await executePhase(
-						ctx.sortResults,
-						ctx.objectContexts,
+						ctx.sortedItems,
+						ctx.executionMaps,
 						baseContext,
 						ctx.transformers,
 						(current, total) => {
@@ -318,7 +318,7 @@ export function createBuildTasks(flags: BuildFlags): Listr<BuildTaskContext> {
 						"dirtyStage",
 						"readsByFile",
 						"objectDependencies",
-						"objectContexts",
+						"processingOrder",
 						"written",
 					);
 
@@ -328,7 +328,7 @@ export function createBuildTasks(flags: BuildFlags): Listr<BuildTaskContext> {
 						resolveOwners: ctx.dirtyStage.resolveOwners,
 						readsByFile: ctx.readsByFile,
 						objectDependencies: ctx.objectDependencies,
-						objectContexts: ctx.objectContexts,
+						processingOrder: ctx.processingOrder,
 						written: ctx.written,
 					});
 

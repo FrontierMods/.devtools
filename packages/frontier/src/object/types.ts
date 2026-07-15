@@ -40,12 +40,13 @@ export type LoadableGameObject = {
 export type CompoundKey = `${ModID}:${ObjectType}:${ObjectID}`;
 
 /**
- * A compound key split back into its parts. `type` is `undefined` for the wildcard key form.
+ * A compound key split back into its parts. `type` is `undefined` for the wildcard key form. `occurrence` is present only for occurrence-qualified keys of additive types.
  */
 export type DecomposedKey = [
 	modId: ModID,
 	type: ObjectType | undefined,
 	id: ObjectID,
+	occurrence?: string,
 ];
 
 /**
@@ -75,6 +76,8 @@ export interface GameObject extends JSONObject {
 	abstract?: ObjectID;
 	/** Recipe identifier: the crafted object's ID, which also acts as the recipe's ID. */
 	result?: ObjectID;
+	/** ID for some additive types, inventory-grouping key for `ITEM`s. */
+	category?: ObjectID;
 	/** Parent object to inherit from during `compose`. */
 	"copy-from"?: ObjectID;
 }
@@ -272,5 +275,6 @@ export interface ReadableObjectRegistry {
  * - `id`: standard identifier, the most common case
  * - `abstract`: runtime inheritance identifier, a base-game quirk
  * - `result`: recipe identifier, the crafted object's ID
+ * - `category`: ID for additive types. Last on purpose: many objects `category` to describe a grouping category for within the inventory.
  */
-export const ID_PROPERTIES = ["id", "abstract", "result"] as const;
+export const ID_PROPERTIES = ["id", "abstract", "result", "category"] as const;

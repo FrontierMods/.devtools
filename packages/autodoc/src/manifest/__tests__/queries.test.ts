@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import type { CanonicalPath, CompoundKey } from "@frmds/frontier";
+import type { CanonicalPath } from "@frmds/frontier";
 import type { FileContext } from "../../types/types.ts";
 import { buildQueryResolver, makeQuery, queryFromKey } from "../queries.ts";
 
@@ -24,14 +24,14 @@ const CONTEXTS = [
 	{
 		sourcePath: FILE_A,
 		modId: "armory",
-		objects: [{ id: "vest", type: "ARMOR" }],
+		entries: [["armory:ARMOR:vest", { id: "vest", type: "ARMOR" }]],
 	},
 	{
 		sourcePath: FILE_B,
 		modId: "armory",
-		objects: [
-			{ id: "vest", type: "recipe" },
-			{ id: "plate", type: "ARMOR" },
+		entries: [
+			["armory:recipe:vest", { id: "vest", type: "recipe" }],
+			["armory:ARMOR:plate", { id: "plate", type: "ARMOR" }],
 		],
 	},
 ] as unknown as FileContext[];
@@ -43,10 +43,8 @@ describe("makeQuery / queryFromKey", () => {
 	});
 
 	test("converts compound keys, preserving wildcards", () => {
-		expect(queryFromKey("armory:ARMOR:vest" as CompoundKey)).toBe(
-			"ARMOR:vest",
-		);
-		expect(queryFromKey("armory:*:vest" as CompoundKey)).toBe("*:vest");
+		expect(queryFromKey("armory:ARMOR:vest")).toBe("ARMOR:vest");
+		expect(queryFromKey("armory:*:vest")).toBe("*:vest");
 	});
 });
 
