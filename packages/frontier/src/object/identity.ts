@@ -76,7 +76,7 @@ export function resolveObjectID(object: GameObject): ResolvedID {
 	}
 
 	throw new Error(
-		`resolveObjectID(): Unable to resolve object ID, object is unprocessable. Ensure all objects have \`id\` or \`abstract\`.\nObject:\n${JSON.stringify(object, null, 2)}`,
+		`resolveObjectID(): Unable to resolve object ID, object is unprocessable. Ensure the object carries one of: ${ID_PROPERTIES.map((property) => `\`${property}\``).join(", ")}.\nObject:\n${JSON.stringify(object, null, 2)}`,
 	);
 }
 
@@ -115,6 +115,7 @@ export function resolveObjectIDs(object: LoadableGameObject): ResolvedID[] {
  * @param id The resolved identifier value.
  * @param type Object type.
  * @param modId Mod ID.
+ * @param occurrence One-indexed occurrence of this ID within the mod. Added to the key from the second occurrence onward to differentiate additive-type objects.
  *
  * @returns Compound key.
  */
@@ -122,8 +123,11 @@ export function makeKey(
 	id: ObjectID,
 	type: ObjectType | undefined,
 	modId: ModID,
+	occurrence: number = 1,
 ): CompoundKey {
-	return [modId, type ?? "*", id].map(escapeForKey).join(":") as CompoundKey;
+	const base = [modId, type ?? "*", id].map(escapeForKey).join(":");
+
+	return (occurrence > 1 ? `${base}:${occurrence}` : base) as CompoundKey;
 }
 
 /**

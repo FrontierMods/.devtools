@@ -1,15 +1,9 @@
 /**
- * @file Sort phase: orders and deduplicates execution targets within each object.
+ * @file Execution-target ordering: deduplicates and sorts targets within each object. The scan phase applies these to every execution map it emits.
  */
 
-import type { CompoundKey } from "@frmds/frontier";
 import { getPathKey } from "../path-cache.ts";
-import type {
-	ExecutionMap,
-	ExecutionTarget,
-	GameObject,
-} from "../types/types.ts";
-import type { ScanResults, SortResults } from "./types.ts";
+import type { ExecutionTarget } from "../types/types.ts";
 
 /**
  * Removes duplicate execution targets.
@@ -73,33 +67,4 @@ export function createTargetComparator(): (
 		// * sort by path for deterministic ordering
 		return pathA.localeCompare(pathB);
 	};
-}
-
-/**
- * Sorts execution targets within each object.
- *
- * This phase only sorts the execution targets (transformer invocations) within each object.
- *
- * @param objects Objects (already in dependency order).
- * @param scanResults Results from scan phase.
- *
- * @returns Objects and sorted execution maps.
- */
-export function sortPhase(
-	objects: GameObject[],
-	scanResults: ScanResults,
-): SortResults {
-	const executionMaps = new Map<CompoundKey, ExecutionMap>();
-
-	for (const [key, executionMap] of scanResults.executionMaps) {
-		const deduplicated = deduplicateTargets(executionMap.targets);
-		const sortedTargets = sortExecutionTargets(deduplicated);
-
-		executionMaps.set(key, {
-			objectId: executionMap.objectId,
-			targets: sortedTargets,
-		});
-	}
-
-	return { sortedObjects: objects, executionMaps };
 }

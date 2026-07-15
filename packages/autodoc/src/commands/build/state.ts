@@ -11,11 +11,10 @@ import type {
 	ModWorkspace,
 	WriteResult,
 } from "@frmds/frontier";
-import type { SortResults } from "../../phases/types.ts";
 import type { ReadLog } from "../../object/recording-view.ts";
 import type {
+	ExecutionMap,
 	FileContext,
-	ObjectContext,
 	ProcessingItem,
 	Transformer,
 } from "../../types/types.ts";
@@ -51,12 +50,12 @@ export interface BuildState {
 	objectsLoaded: number;
 	/** The flattened objects in processing order. */
 	processingOrder: ProcessingItem[];
-	/** Source path and mod for each processed object. */
-	objectContexts: Map<CompoundKey, ObjectContext>;
 	/** The transformers applied during the build. */
 	transformers: Transformer[];
-	/** The sorted execution targets per object. */
-	sortResults: SortResults;
+	/** Processing items in dependency order. */
+	sortedItems: ProcessingItem[];
+	/** Execution maps. */
+	executionMaps: Map<CompoundKey, ExecutionMap>;
 	/** Count of objects processed by the transform phase. */
 	processedCount: number;
 	/** Count of output files written. */

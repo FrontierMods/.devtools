@@ -17,7 +17,6 @@ import { TransformerSkip } from "../../transformers/skip.ts";
 import type { Transformer } from "../../types/types.ts";
 import { executePhase } from "../execute.ts";
 import { scanObject } from "../scan.ts";
-import { sortPhase } from "../sort.ts";
 
 /**
  * Source path stamped onto the loaded object and its context.
@@ -106,7 +105,7 @@ const DERIVER: Transformer = {
 };
 
 /**
- * Runs one object through scan → sort → execute and return its settled state.
+ * Runs one object through scan → execute and return its settled state.
  */
 async function run(
 	object: GameObject,
@@ -124,14 +123,9 @@ async function run(
 		modId: "m",
 	});
 
-	const sortResults = sortPhase([object], {
-		executionMaps: new Map([[key, scan.executionMap]]),
-		objectDependencies: new Map(),
-	});
-
 	await executePhase(
-		sortResults,
-		new Map([[key, { sourcePath: FILE, modId: "m" }]]),
+		[{ key, object, modId: "m", sourcePath: FILE }],
+		new Map([[key, scan.executionMap]]),
 		{ workspace, objects, scope: SCOPE },
 		transformers,
 	);

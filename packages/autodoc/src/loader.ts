@@ -19,12 +19,12 @@ import {
 	statFiles,
 	writeObjectIndex,
 	type CanonicalPath,
+	type CompoundKey,
 	type LoadableGameObject,
 	type ModID,
 	type ObjectIndexEntries,
 } from "@frmds/frontier";
 import path from "path";
-import { TYPE_LOAD_SKIP } from "./constants.ts";
 import { modResolver } from "./context.ts";
 import { createLazyDependencySource } from "./lazy-source.ts";
 import { AUTODOC_LOGGER } from "./logger.ts";
@@ -217,7 +217,10 @@ async function loadWithCache(
 		fileContexts.push({
 			sourcePath: filePath,
 			modId,
-			objects: workspace.liveProjection(modId, filePath) as GameObject[],
+			entries: workspace.keyedProjection(modId, filePath) as [
+				CompoundKey,
+				GameObject,
+			][],
 		});
 	}
 
@@ -268,10 +271,7 @@ async function loadFromDisk(
 		fileContexts.push({
 			sourcePath,
 			modId,
-			objects: workspace.liveProjection(
-				modId,
-				sourcePath,
-			) as GameObject[],
+			entries: workspace.keyedProjection(modId, sourcePath),
 		});
 	}
 
@@ -312,7 +312,6 @@ export function loadObjectsIntoFile(
 		}
 
 		if (!object.type) continue;
-		if (TYPE_LOAD_SKIP.includes(object.type)) continue;
 
 		workspace.load(object, modId, filePath);
 
@@ -388,7 +387,7 @@ export async function loadDependencies(
 		modsLoaded: dependencies.length,
 		filesLoaded: fileContexts.length,
 		objectsLoaded: fileContexts.reduce(
-			(total, file) => total + file.objects.length,
+			(total, file) => total + file.entries.length,
 			0,
 		),
 		fileContexts,

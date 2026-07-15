@@ -5,8 +5,6 @@
 import {
 	extractErrorMessage,
 	getAtPath,
-	makeKey,
-	makeKeyFromObject,
 	type ModWorkspace,
 	readKey,
 	resolveObjectID,
@@ -32,20 +30,16 @@ import type {
 	ExecutionMap,
 	ExecutionTarget,
 	GameObject,
-	ObjectContext,
+	ProcessingItem,
 	TransformContext,
 	Transformer,
 } from "../types/types.ts";
 import { validatePositionalTargets } from "./output-validation.ts";
 import { collectModifiedPaths, filterWorkQueue } from "./path-mutations.ts";
 import { scanObject, scanValueSubtree } from "./scan.ts";
-import {
-	createTargetComparator,
-	deduplicateTargets,
-	sortExecutionTargets,
-} from "./sort.ts";
+import { createTargetComparator, sortExecutionTargets } from "./sort.ts";
 import { partitionTransformers } from "./targeting.ts";
-import type { ExecuteResults, SortResults } from "./types.ts";
+import type { ExecuteResults } from "./types.ts";
 
 /**
  * Per-object transform context: the full {@link TransformContext} minus the per-target `currentObject` and `propertyPath`, which {@link applyTransformation} supplies for each target.
@@ -75,26 +69,6 @@ interface ExecuteBaseContext {
 	signal?: AbortSignal;
 	/** Announces the source file whose object is about to be processed, so the recording view uses it to attribute reads. Optional: tests and non-incremental callers omit it. */
 	setReadConsumer?: (file: CanonicalPath | null) => void;
-}
-
-/**
- * Grouped parameters for batch object processing.
- */
-interface BatchContext {
-	/** Execution maps for the batch, keyed by `CompoundKey`. */
-	executionMaps: Map<CompoundKey, ExecutionMap>;
-	/** Context metadata for each object in the batch, keyed by `CompoundKey`. */
-	objectContexts: Map<CompoundKey, ObjectContext>;
-}
-
-/**
- * A spawned object awaiting processing, paired with the context recording where it came from.
- */
-interface PendingObject {
-	/** The spawned object awaiting processing. */
-	object: GameObject;
-	/** Context recording the mod and source the object came from. */
-	context: ObjectContext;
 }
 
 /**
@@ -209,8 +183,8 @@ function rescanModifiedPaths(
  * Processes a batch of objects through the execution pipeline.
  * Shared logic for both initial objects and newly-created objects.
  *
- * @param objects Objects to process.
- * @param batch Grouped maps for execution context, object context, and results.
+ * @param items Processing items to process.
+ * @param executionMaps Execution maps for the batch.
  * @param baseContext Base transformation context.
  * @param transformers All registered transformers.
  * @param onSpawn Callback invoked for each object a transformation creates.
@@ -221,11 +195,12 @@ function rescanModifiedPaths(
  * @throws When transformers stay unresolved after the rescan loop settles, or when patch application fails.
  */
 async function processObjectBatch(
-	objects: GameObject[],
-	batch: BatchContext,
+	items: ProcessingItem[],
+	executionMaps: Map<CompoundKey, ExecutionMap>,
 	baseContext: ExecuteBaseContext,
 	transformers: Transformer[],
 	onSpawn: (
+		key: CompoundKey,
 		object: GameObject,
 		modId: ModID,
 		sourcePath: CanonicalPath,
@@ -240,37 +215,29 @@ async function processObjectBatch(
 
 	let processed = 0;
 
-	for (const object of objects) {
-		const currentModId = baseContext.scope[0]!;
-		const objectContextKey = makeKeyFromObject(object, currentModId);
+	for (const { object, key, modId, sourcePath } of items) {
+		baseContext.setReadConsumer?.(sourcePath);
 
-		const objectContext = batch.objectContexts.get(objectContextKey);
-
-		if (!objectContext) continue;
-
-		baseContext.setReadConsumer?.(objectContext.sourcePath);
-
-		const executionMapKey = makeKeyFromObject(object, objectContext.modId);
-		const executionMap = batch.executionMaps.get(executionMapKey);
+		const executionMap = executionMaps.get(key);
 
 		if (!executionMap) {
-			finalize(baseContext.workspace, executionMapKey, baseContext.scope);
+			finalize(baseContext.workspace, key, baseContext.scope);
 
 			processed++;
 
-			onProgress?.(processed, objects.length);
+			onProgress?.(processed, items.length);
 
 			continue;
 		}
 
 		const context = {
 			...baseContext,
-			sourcePath: objectContext.sourcePath,
-			modId: objectContext.modId,
+			sourcePath,
+			modId,
 		} satisfies ObjectTransformContext;
 
 		let currentObject: GameObject | null = timelineCurrent(
-			baseContext.workspace.timeline(executionMapKey)!,
+			baseContext.workspace.timeline(key)!,
 		)!;
 
 		const queue = new WorkQueue<ExecutionTarget>(
@@ -292,7 +259,7 @@ async function processObjectBatch(
 			if (!queue.hasNext()) {
 				if (!progressedSinceFlush)
 					throw new Error(
-						`processObjectBatch(): unresolved transformers on \`${executionMapKey}\` after the rescan loop settled:\n  ${skipMessages.join("\n  ")}`,
+						`processObjectBatch(): unresolved transformers on \`${key}\` after the rescan loop settled:\n  ${skipMessages.join("\n  ")}`,
 					);
 
 				queue.update(skipped, []);
@@ -305,8 +272,8 @@ async function processObjectBatch(
 			}
 
 			const target = queue.next();
-			const file = baseContext.workspace.fileOf(executionMapKey)!;
-			const position = baseContext.workspace.positionOf(executionMapKey)!;
+			const file = baseContext.workspace.fileOf(key)!;
+			const position = baseContext.workspace.positionOf(key)!;
 
 			let allPatches: Patch[];
 
@@ -320,7 +287,7 @@ async function processObjectBatch(
 			} catch (error) {
 				if (error instanceof TransformerSkip) {
 					LOGGER.info(
-						`Skipped \`${target.transformer.name}\` on \`${executionMapKey}\`: ${error.message}`,
+						`Skipped \`${target.transformer.name}\` on \`${key}\`: ${error.message}`,
 					);
 
 					skipped.push(target);
@@ -339,15 +306,15 @@ async function processObjectBatch(
 			try {
 				result = baseContext.workspace.apply(
 					allPatches,
-					{ modId: objectContext.modId, file },
+					{ modId, file },
 					target.transformer.name,
-					executionMapKey,
+					key,
 				);
 			} catch (error) {
 				throw new Error(
 					`processObjectBatch(): Patch application failed\n` +
 						`  Transformer: ${target.transformer.name}\n` +
-						`  Object: ${executionMapKey}\n` +
+						`  Object: ${key}\n` +
 						`  Error: ${extractErrorMessage(error)}`,
 				);
 			}
@@ -359,6 +326,7 @@ async function processObjectBatch(
 				const [createdModId] = readKey(createdKey);
 
 				onSpawn(
+					createdKey,
 					timelineRaw(createdTimeline),
 					createdModId,
 					baseContext.workspace.fileOf(createdKey)!,
@@ -372,7 +340,7 @@ async function processObjectBatch(
 			}
 
 			currentObject = timelineCurrent(
-				baseContext.workspace.timeline(executionMapKey)!,
+				baseContext.workspace.timeline(key)!,
 			)!;
 
 			progressedSinceFlush = true;
@@ -400,24 +368,22 @@ async function processObjectBatch(
 			if (strictPositional.length) {
 				const positionalErrors = validatePositionalTargets(
 					currentObject,
-					timelineRaw(
-						baseContext.workspace.timeline(executionMapKey)!,
-					),
+					timelineRaw(baseContext.workspace.timeline(key)!),
 					strictPositional,
 				);
 
 				if (positionalErrors.length)
 					throw new Error(
-						`Object failed validation: ${executionMapKey}\n  ${positionalErrors.join("\n  ")}`,
+						`Object failed validation: ${key}\n  ${positionalErrors.join("\n  ")}`,
 					);
 			}
 
-			finalize(baseContext.workspace, executionMapKey, baseContext.scope);
+			finalize(baseContext.workspace, key, baseContext.scope);
 		}
 
 		processed++;
 
-		onProgress?.(processed, objects.length);
+		onProgress?.(processed, items.length);
 	}
 
 	baseContext.setReadConsumer?.(null);
@@ -430,8 +396,8 @@ async function processObjectBatch(
  * Uses queue-based progressive scanning to handle patterns created by transformations.
  * Recursively processes newly-created objects until no more objects are created.
  *
- * @param sortResults Sorted objects and execution maps.
- * @param objectContexts Map of object IDs to their context metadata.
+ * @param sortedItems Processing items in dependency order.
+ * @param executionMaps Execution maps.
  * @param baseContext Base transformation context (excluding per-object fields).
  * @param transformers All registered transformers.
  * @param onProgress Optional progress callback.
@@ -441,30 +407,28 @@ async function processObjectBatch(
  * @throws When the abort signal fires during the execute phase.
  */
 export async function executePhase(
-	sortResults: SortResults,
-	objectContexts: Map<CompoundKey, ObjectContext>,
+	sortedItems: ProcessingItem[],
+	executionMaps: Map<CompoundKey, ExecutionMap>,
 	baseContext: ExecuteBaseContext,
 	transformers: Transformer[],
 	onProgress?: ProgressCallback,
 ): Promise<ExecuteResults> {
-	const pendingObjects: PendingObject[] = [];
+	const pendingObjects: ProcessingItem[] = [];
 
 	let processedCount = 0;
 
 	function onSpawn(
+		key: CompoundKey,
 		object: GameObject,
 		modId: ModID,
 		sourcePath: CanonicalPath,
 	): void {
-		pendingObjects.push({ object, context: { sourcePath, modId } });
+		pendingObjects.push({ key, object, modId, sourcePath });
 	}
 
 	processedCount += await processObjectBatch(
-		sortResults.sortedObjects,
-		{
-			executionMaps: sortResults.executionMaps,
-			objectContexts,
-		},
+		sortedItems,
+		executionMaps,
 		baseContext,
 		transformers,
 		onSpawn,
@@ -479,20 +443,8 @@ export async function executePhase(
 
 		const batch = pendingObjects.splice(0, pendingObjects.length);
 
-		const newObjectContexts = new Map<CompoundKey, ObjectContext>();
-
-		for (const { object, context } of batch) {
-			const key = makeKey(
-				resolveObjectID(object).id,
-				object.type,
-				context.modId,
-			);
-
-			newObjectContexts.set(key, context);
-		}
-
-		const newScanResults = batch.map(({ object, context }) =>
-			scanObject(object, transformers, context),
+		const newScanResults = batch.map(({ object, modId, sourcePath }) =>
+			scanObject(object, transformers, { sourcePath, modId }),
 		);
 
 		const newExecutionMaps = new Map<CompoundKey, ExecutionMap>();
@@ -500,34 +452,26 @@ export async function executePhase(
 
 		for (let index = 0; index < newScanResults.length; index++) {
 			const result = newScanResults[index]!;
-			const { object, context } = batch[index]!;
-
-			const key = makeKey(result.objectId, object.type, context.modId);
+			const { key } = batch[index]!;
 
 			newExecutionMaps.set(key, result.executionMap);
 			dependenciesByKey.set(key, result.dependencies);
 		}
 
-		const sortableBatch = batch.map(({ object, context }) => {
-			const id = resolveObjectID(object).id;
-			const key = makeKey(id, object.type, context.modId);
-
-			return { object, context, key };
-		});
 		const availableKeys = new Set<CompoundKey>(
-			sortableBatch.map((item) => item.key),
+			batch.map((item) => item.key),
 		);
 
 		const idIndex = buildIdIndex(availableKeys);
 
 		const sortedNewObjects = sortByDependencies(
-			sortableBatch,
+			batch,
 			({ key }) => key,
-			({ context, key }) => {
+			({ modId, key }) => {
 				const scope =
-					context.modId === baseContext.scope[0]
+					modId === baseContext.scope[0]
 						? baseContext.scope
-						: ([context.modId] as ModScope);
+						: ([modId] as ModScope);
 
 				const deps = dependenciesByKey.get(key);
 
@@ -538,24 +482,11 @@ export async function executePhase(
 				);
 			},
 			{ relaxed: true },
-		).map((item) => item.object);
-
-		for (const [key, executionMap] of newExecutionMaps) {
-			const deduplicated = deduplicateTargets(executionMap.targets);
-			const sorted = sortExecutionTargets(deduplicated);
-
-			newExecutionMaps.set(key, {
-				objectId: executionMap.objectId,
-				targets: sorted,
-			});
-		}
+		);
 
 		processedCount += await processObjectBatch(
 			sortedNewObjects,
-			{
-				executionMaps: newExecutionMaps,
-				objectContexts: newObjectContexts,
-			},
+			newExecutionMaps,
 			baseContext,
 			transformers,
 			onSpawn,

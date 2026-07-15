@@ -112,6 +112,19 @@ describe("lookup", () => {
 	});
 });
 
+describe("projections", () => {
+	test("keyed projection pairs each live shape with its key", () => {
+		const workspace = workspaceWithSword();
+
+		expect(workspace.keyedProjection("mod", FILE_A)).toEqual([
+			[
+				makeKey("sword", "ITEM", "mod"),
+				{ type: "ITEM", id: "sword", price: 10 },
+			],
+		]);
+	});
+});
+
 describe("completeness", () => {
 	test("markComplete and isComplete track finalized keys", () => {
 		const workspace = workspaceWithSword();
@@ -283,5 +296,102 @@ describe("apply", () => {
 			id: "shield",
 			mk: 2,
 		});
+	});
+});
+
+describe("additive load", () => {
+	test("same-mod duplicates of an additive type load under occurrence keys", () => {
+		const workspace = new ModWorkspace();
+
+		workspace.load(
+			{ type: "talk_topic", id: "TALK_GUARD", lines: ["a"] },
+			"mod",
+			FILE_A,
+		);
+		workspace.load(
+			{ type: "talk_topic", id: "TALK_GUARD", lines: ["b"] },
+			"mod",
+			FILE_A,
+		);
+
+		expect(workspace.liveProjection("mod", FILE_A)).toEqual([
+			{ type: "talk_topic", id: "TALK_GUARD", lines: ["a"] },
+			{ type: "talk_topic", id: "TALK_GUARD", lines: ["b"] },
+		]);
+		expect(
+			workspace.fileOf(makeKey("TALK_GUARD", "talk_topic", "mod")),
+		).toBe(FILE_A);
+		expect(
+			workspace.fileOf(makeKey("TALK_GUARD", "talk_topic", "mod", 2)),
+		).toBe(FILE_A);
+	});
+
+	test("identical additive duplicates are all kept", () => {
+		const workspace = new ModWorkspace();
+
+		workspace.load(
+			{ type: "talk_topic", id: "TALK_GUARD", lines: ["a"] },
+			"mod",
+			FILE_A,
+		);
+		workspace.load(
+			{ type: "talk_topic", id: "TALK_GUARD", lines: ["a"] },
+			"mod",
+			FILE_B,
+		);
+
+		expect(workspace.liveProjection("mod", FILE_A)).toHaveLength(1);
+		expect(workspace.liveProjection("mod", FILE_B)).toHaveLength(1);
+	});
+
+	test("find returns the first occurrence for a bare ID", () => {
+		const workspace = new ModWorkspace();
+
+		workspace.load(
+			{ type: "talk_topic", id: "TALK_GUARD", lines: ["a"] },
+			"mod",
+			FILE_A,
+		);
+		workspace.load(
+			{ type: "talk_topic", id: "TALK_GUARD", lines: ["b"] },
+			"mod",
+			FILE_A,
+		);
+
+		expect(workspace.find("TALK_GUARD", "talk_topic", ["mod"])?.key).toBe(
+			makeKey("TALK_GUARD", "talk_topic", "mod"),
+		);
+	});
+
+	test("non-additive conflicting duplicates still throw", () => {
+		const workspace = workspaceWithSword();
+
+		expect(() =>
+			workspace.load(
+				{ type: "ITEM", id: "sword", price: 99 },
+				"mod",
+				FILE_B,
+			),
+		).toThrow(/Duplicate object/);
+	});
+
+	test("snippets sharing a category load under occurrence keys", () => {
+		const workspace = new ModWorkspace();
+
+		workspace.load(
+			{ type: "snippet", category: "<scars>", text: ["a"] },
+			"mod",
+			FILE_A,
+		);
+		workspace.load(
+			{ type: "snippet", category: "<scars>", text: ["b"] },
+			"mod",
+			FILE_A,
+		);
+
+		expect(workspace.liveProjection("mod", FILE_A)).toEqual([
+			{ type: "snippet", category: "<scars>", text: ["a"] },
+			{ type: "snippet", category: "<scars>", text: ["b"] },
+		]);
 	});
 });

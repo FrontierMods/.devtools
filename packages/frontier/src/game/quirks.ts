@@ -5,7 +5,17 @@
 import { BASE_GAME_MOD_ID } from "../constants.ts";
 import { normalizePath } from "../file/paths.ts";
 import type { ModID } from "../mod/types.ts";
-import type { Path } from "../types/data.ts";
+import type { ObjectType, Path } from "../types/data.ts";
+
+/**
+ * Object types the base game merges additively.
+ * These do not rely on the depth-resolution quirk, and are processed separately.
+ */
+export const ADDITIVE_TYPES: readonly ObjectType[] = [
+	"snippet",
+	"dream",
+	"talk_topic",
+];
 
 /**
  * Checks if a mod is the base game.
