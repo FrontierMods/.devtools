@@ -49,13 +49,14 @@ export function matchesFilter(
 			return false;
 	}
 
-	if (filter.not)
-		return !filter.not.some((condition) =>
-			matchesFilter(object, condition),
-		);
+	if (filter.not?.some((condition) => matchesFilter(object, condition)))
+		return false;
 
-	if (filter.or)
-		return filter.or.some((condition) => matchesFilter(object, condition));
+	if (
+		filter.or &&
+		!filter.or.some((condition) => matchesFilter(object, condition))
+	)
+		return false;
 
 	const reservedKeys = new Set<keyof ReferenceFilter>([
 		"has",

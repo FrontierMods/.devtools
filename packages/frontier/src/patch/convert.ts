@@ -2,9 +2,10 @@
  * @file Converts sugar patch operations to standard JSON Patch: the `convertToJSONPatch` dispatcher and its per-op converters.
  */
 
-import type { JSONPatchOperation } from "immutable-json-patch";
+import type { JSONPatchOperation, JSONPointer } from "immutable-json-patch";
 import { getAtPath } from "../object/access.ts";
-import type { JSONValue } from "../types/data.ts";
+import type { JSONObject, JSONValue } from "../types/data.ts";
+import { isObject } from "../types/guards.ts";
 import { matchesAllFilters } from "./filters.ts";
 import { arrayToJSONPointer, normalizePath } from "./pointer.ts";
 import type {
@@ -19,6 +20,70 @@ import type {
 	ReplacePatch,
 	SubtractPatch,
 } from "./schemas.ts";
+
+/**
+ * Shorthand declaration of an item spawn in item groups.
+ */
+type Shorthand = [id: string, prob: number];
+
+/**
+ * Parent declaration of a {@link Shorthand}.
+ * Defines which ID to use when parsing shorthands.
+ */
+type ShorthandParentKey = "item" | "group";
+
+/**
+ * Checks whether the value is a shorthand item-spawn declaration.
+ *
+ * @param value JSON value to check.
+ *
+ * @returns Whether the value is a shorthand.
+ */
+function isShorthandItemSpawn(value: JSONValue): value is Shorthand {
+	return (
+		Array.isArray(value) &&
+		value.length === 2 &&
+		typeof value[0] === "string" &&
+		typeof value[1] === "number"
+	);
+}
+
+/**
+ * Returns the key of the array holding shorthands.
+ *
+ * The key is used to correctly key the ID prop in the filter object.
+ *
+ * @param pointer JSON Pointer to the array holding the shorthand.
+ *
+ * @returns Key of the parent array.
+ */
+function getShorthandParentKey(pointer: JSONPointer): ShorthandParentKey {
+	return pointer.split("/").at(-1) === "groups" ? "group" : "item";
+}
+
+/**
+ * Converts value to a valid shape for filtering.
+ * Returns `undefined` if the value isn't one.
+ *
+ * @param value JSON value to operate on.
+ * @param parent Key of parent array of the value.
+ *
+ * @returns Object shape for filters.
+ */
+function coerceToFilterObject(
+	value: JSONValue,
+	parent: ShorthandParentKey,
+): JSONObject | undefined {
+	// * string item spawns (declaring item IDs) are valid
+	if (typeof value === "string") return { [parent]: value, prob: 100 };
+
+	if (isShorthandItemSpawn(value))
+		return { [parent]: value[0], prob: value[1] };
+
+	return typeof value === "object" && value !== null && !Array.isArray(value)
+		? value
+		: undefined;
+}
 
 /**
  * Pushes a value onto an array, creating the array when the path is absent.
@@ -107,14 +172,15 @@ function convertDrop(
 		}
 
 		if (patch.filter && patch.filter.length) {
-			if (
-				typeof item !== "object" ||
-				item === null ||
-				Array.isArray(item)
-			)
-				return false;
+			const candidate = coerceToFilterObject(
+				item,
+				getShorthandParentKey(pointer),
+			);
 
-			return matchesAllFilters(item, patch.filter);
+			return (
+				candidate !== undefined &&
+				matchesAllFilters(candidate, patch.filter)
+			);
 		}
 
 		return false;
@@ -160,14 +226,14 @@ function convertReplace(
 	return current
 		.map((item, index) => ({ item, index }))
 		.filter(({ item }) => {
-			if (
-				typeof item !== "object" ||
-				item === null ||
-				Array.isArray(item)
-			)
-				return false;
+			const candidate = coerceToFilterObject(
+				item,
+				getShorthandParentKey(pointer),
+			);
 
-			return matchesAllFilters(item, filter);
+			if (!candidate) return false;
+
+			return matchesAllFilters(candidate, filter);
 		})
 		.map(({ index }) => ({
 			op: "replace" as const,
@@ -280,51 +346,63 @@ function convertDivide(
 }
 
 /**
- * Shallow-merges an object's properties into the target object.
+ * Shallow-merges an object's properties into the target object, or into every array item matching the filter set.
  *
- * @param pointer JSON Pointer to the target location.
+ * @param pointer JSON Pointer to the target location or array.
  * @param current The current value at the pointer.
- * @param patch Merge patch operation supplying the properties to merge.
+ * @param patch Merge patch operation supplying the properties to merge and optional filter set.
  *
- * @returns JSON Patch operations that add or replace each merged property.
+ * @returns One JSON Patch operation that adds or replaces the merged object, or one replace per matching item when filtering.
  *
- * @throws Error if the current value exists but is not a plain object.
+ * @throws Error if a filter is given but the current value is not an array, or no filter is given and the current value exists but is not a plain object.
  */
 function convertMerge(
-	pointer: string,
+	pointer: JSONPointer,
 	current: unknown,
 	patch: MergePatch,
 ): JSONPatchOperation[] {
-	if (
-		typeof current !== "object" ||
-		current === null ||
-		Array.isArray(current)
-	) {
-		if (current === undefined)
-			return [{ op: "add", path: pointer, value: patch.value }];
+	// * a local keeps the narrowing inside the `reduce()` callback below
+	const filter = patch.filter;
 
-		throw new Error(
-			`Cannot merge into non-object value at ${pointer} (type: ${
-				Array.isArray(current) ? "array" : typeof current
-			})`,
+	if (filter && filter.length) {
+		if (!Array.isArray(current))
+			throw new Error(
+				`convertMerge(): cannot filter-merge into item of type \`${typeof current}\` in non-array value at \`${pointer}\``,
+			);
+
+		const parentKey = getShorthandParentKey(pointer);
+
+		return current.reduce<JSONPatchOperation[]>(
+			(operations, item, index) => {
+				const candidate = coerceToFilterObject(item, parentKey);
+
+				// * a shorthand has no keys to merge into, so it becomes its object form
+				if (candidate && matchesAllFilters(candidate, filter))
+					operations.push({
+						op: "replace",
+						path: `${pointer}/${index}`,
+						value: { ...candidate, ...patch.value },
+					});
+
+				return operations;
+			},
+			[],
 		);
 	}
 
-	return Object.entries(patch.value).map(([key, value]) => {
-		const escapedKey = key.replace(/~/g, "~0").replace(/\//g, "~1");
+	if (current === undefined)
+		return [{ op: "add", path: pointer, value: patch.value }];
 
-		const propertyPath = pointer
-			? `${pointer}/${escapedKey}`
-			: `/${escapedKey}`;
-		const propertyExists =
-			current[key as keyof typeof current] !== undefined;
+	if (!isObject<JSONValue>(current))
+		throw new Error(
+			`convertMerge(): cannot merge into non-object value at ${pointer} (type: ${
+				Array.isArray(current) ? "array" : typeof current
+			})`,
+		);
 
-		return {
-			op: propertyExists ? ("replace" as const) : ("add" as const),
-			path: propertyPath,
-			value,
-		};
-	});
+	return [
+		{ op: "replace", path: pointer, value: { ...current, ...patch.value } },
+	];
 }
 
 /**

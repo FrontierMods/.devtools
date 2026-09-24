@@ -55,7 +55,7 @@ export type MultiplyPatch = Static<typeof PatchSchemas.multiply>;
 export type DividePatch = Static<typeof PatchSchemas.divide>;
 
 /**
- * Shallow-merge an object's properties into the target.
+ * Shallow-merge an object's properties into the target, or into every array item matching a filter set.
  */
 export type MergePatch = Static<typeof PatchSchemas.merge>;
 
@@ -200,6 +200,7 @@ export const PatchSchemas = {
 		...BASE_PATCH_FIELDS,
 		op: Type.Literal("merge"),
 		value: JsonObjectSchema,
+		filter: Type.Optional(Type.Array(ReferenceFilterSchema)),
 	}),
 	replace: Type.Object({
 		...BASE_PATCH_FIELDS,

@@ -13,6 +13,7 @@ A `patch` array at the object's root. Each entry is one operation, written again
 - `path`: a deeper target, as a property list or a JSON Pointer string, when `key` is not enough
 - `value`: the value the operation needs
 - `from`: the source location, for operations that move or copy
+- `filter`: a list of property matches that selects array items by content, for `drop`, `replace`, and `merge`
 
 Paths are written relative to the object, so you target `subtypes`, not the `patch` array around it.
 
