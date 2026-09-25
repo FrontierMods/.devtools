@@ -83,7 +83,7 @@ const VERSION_SET_COMMAND = buildCommand({
 });
 
 /**
- * `mod version`: prints the current version, warning when it is malformed and advising when it is absent.
+ * `mod version`: prints the current version, warning when it is malformed and failing when it is absent.
  */
 const VERSION_SHOW_COMMAND = buildCommand({
 	func: async function (this: CommandContext, flags: CoreFlags) {
@@ -94,12 +94,17 @@ const VERSION_SHOW_COMMAND = buildCommand({
 				fs.readFileSync(modinfoLocation(), "utf8"),
 			);
 
-			if (version === undefined)
-				return LOGGER.info(
+			if (version === undefined) {
+				LOGGER.warn(
 					"No `version` in `modinfo.json`. Run `frontier mod version up` to start at `v0.1.0`, or `frontier mod version set <version>` for a custom start.",
 				);
 
-			LOGGER.info(version);
+				process.exitCode = 1;
+
+				return;
+			}
+
+			console.log(version);
 
 			if (!isVersion(version))
 				LOGGER.warn(describeInvalidVersion(version));
