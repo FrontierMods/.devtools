@@ -1,5 +1,17 @@
 # @frmds/transformers
 
+## 1.0.6
+
+### Patch Changes
+
+- f3d1b8d: Add `filter` support to the `merge` patch operation: merges `value` into every array item that matches the filter
+
+    Validate every patch operation against its schema: unknown fields, `key` with `path`, and `drop` without exactly one of `value` or a non-empty `filter` now fail the build
+
+- Updated dependencies [f3d1b8d]
+- Updated dependencies [ff6fe97]
+    - @frmds/frontier@0.8.1
+
 ## 1.0.5
 
 ### Patch Changes
