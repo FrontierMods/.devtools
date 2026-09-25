@@ -33,4 +33,5 @@ export const STABLE_RELEASES: Record<string, string> = {
 	d6ec466140839dd70c1a43671eb4a08b007695c2: "0.G",
 	"08f04fd07f028219a65f2f1fc8e73719dc9c954e": "0.H",
 	"27939e29b8b4ddc081490d9f51de59a459c88df6": "0.I",
+	"7b2efa5cea38e4d4d97dd0e63b28b9148623da59": "0.I-1",
 };
