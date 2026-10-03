@@ -1,5 +1,12 @@
 # @frmds/autodoc
 
+## 0.8.5
+
+### Patch Changes
+
+- Updated dependencies [27d422c]
+    - @frmds/frontier@0.9.0
+
 ## 0.8.4
 
 ### Patch Changes

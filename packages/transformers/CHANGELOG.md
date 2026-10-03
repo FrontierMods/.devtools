@@ -1,5 +1,14 @@
 # @frmds/transformers
 
+## 1.0.7
+
+### Patch Changes
+
+- 9fd9711: The `dimensions` transformer raises computed volumes below `1 ml` to `1 ml`.
+- Updated dependencies [27d422c]
+    - @frmds/frontier@0.9.0
+    - @frmds/autodoc@0.8.5
+
 ## 1.0.6
 
 ### Patch Changes

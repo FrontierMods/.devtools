@@ -1,6 +1,6 @@
 {
 	"name": "@frmds/transformers",
-	"version": "1.0.6",
+	"version": "1.0.7",
 	"description": "Shared transformers for the Autodoc module of the Frontier Mods `.devtools`",
 	"keywords": [
 		"frontier-plugin"
@@ -51,8 +51,8 @@
 		"prepublishOnly": "bun run lint && bun run format:check && bun run build"
 	},
 	"dependencies": {
-		"@frmds/autodoc": "^0.8.4",
-		"@frmds/frontier": "^0.8.1",
+		"@frmds/autodoc": "^0.8.5",
+		"@frmds/frontier": "^0.9.0",
 		"@quantities/core": "^2.0.0",
 		"@quantities/to-compound": "^0.5.0",
 		"typebox": "^1.0.81"
