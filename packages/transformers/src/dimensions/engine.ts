@@ -37,6 +37,11 @@ type LongestSideCalculatorFn = (
 ) => string;
 
 /**
+ * Smallest volume the game can represent: `units::volume` counts whole milliliters.
+ */
+const MINIMUM_VOLUME = Quantity("1 ml");
+
+/**
  * Calculators for `volume` and `longest_side` per type of `dimensions` object.
  */
 const CALCULATORS = {
@@ -79,13 +84,12 @@ function normalizeQuantityString(value: string): string {
 }
 
 /**
- * Calculate total volume from the `dimensions` object or array (volumes are summed).
+ * Sum raw volumes from the `dimensions` object or array.
  */
-export function getVolumeFromDimensions(dimensions: Dimensions): Quantity {
+function sumVolumes(dimensions: Dimensions): Quantity {
 	if (Array.isArray(dimensions))
 		return dimensions.reduce(
-			(accumulator, dimension) =>
-				accumulator.add(getVolumeFromDimensions(dimension)),
+			(accumulator, dimension) => accumulator.add(sumVolumes(dimension)),
 			Quantity("0 ml"),
 		);
 
@@ -102,6 +106,13 @@ export function getVolumeFromDimensions(dimensions: Dimensions): Quantity {
 		case "lowerwear":
 			return CALCULATORS.lowerwear.volume(dimensions);
 	}
+}
+
+/**
+ * Calculate total volume from the `dimensions` object or array (volumes are summed), raised to {@link MINIMUM_VOLUME}.
+ */
+export function getVolumeFromDimensions(dimensions: Dimensions): Quantity {
+	return Quantity.max(sumVolumes(dimensions), MINIMUM_VOLUME);
 }
 
 /**

@@ -28,7 +28,7 @@ Any shape may also carry:
 
 The `dimensions` object is removed and replaced with:
 
-- `volume`: always, summed across an array
+- `volume`: always, summed across an array, at least `1 ml`
 - `longest_side`: when it can be determined. An item that declares its own `longest_side` keeps it, and an array of all-`soft` pieces has none, so the property is left off.
 
 ## Examples
