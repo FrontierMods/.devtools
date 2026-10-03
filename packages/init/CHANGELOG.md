@@ -1,5 +1,12 @@
 # @frmds/init
 
+## 1.0.3
+
+### Patch Changes
+
+- Updated dependencies [27d422c]
+    - @frmds/frontier@0.9.0
+
 ## 1.0.2
 
 ### Patch Changes
